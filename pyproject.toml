@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "controller-companion"
+version = "0.1.0"
+description = ""
+authors = [
+    "Johannes Gundlach <24914225+Johannes11833@users.noreply.github.com>",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.14"
+pygame = "^2.6.1"
+pystray = "^0.19.5"
+pillow = "^11.0.0"
+pyautogui = "^0.9.54"
+
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.11.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.scripts]
+controller_companion = "controller_companion.controller_observer:run"
+controller_companion_ui = "controller_companion.app.app:run"
+build = "controller_companion.pyinstaller:install"
