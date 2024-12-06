@@ -8,10 +8,10 @@ from tkinter import (
     Menu,
 )
 import platform
+from tkinter import ttk
 import pystray
 from PIL import Image
-
-from controller_companion.action import Action
+from controller_companion.shortcut import Shortcut
 from controller_companion.app import resources
 from controller_companion.app.about import AboutScreen
 from controller_companion.app.create_action import CreateActionPopup
@@ -24,7 +24,7 @@ class MyApp(tk.Tk):
 
         self.title("Controller Companion")
         self.iconbitmap(resources.APP_ICON_ICO)
-        self.geometry("700x300")
+        self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
         self.app_path = Path.home() / "Documents" / "Controller Companion"
         self.settings_file = self.app_path / "settings.json"
@@ -40,10 +40,10 @@ class MyApp(tk.Tk):
         filemenu_ = Menu(menu, tearoff=False)
         menu.add_cascade(label="File", menu=filemenu_)
         filemenu_.add_command(
-            label="Add action", command=self.open_add_actions, accelerator="Ctrl+N"
+            label="Add mapping", command=self.open_add_actions, accelerator="Ctrl+N"
         )
         filemenu_.add_command(
-            label="Delete action",
+            label="Delete mapping",
             command=self.delete_action,
             accelerator="Del",
         )
@@ -97,15 +97,22 @@ class MyApp(tk.Tk):
 
         # ---------------------------------------------------------------------------- #
 
-        tk.Label(self, text="Defined Actions").pack(fill=tk.X)
-        self.var_listbox_actions = tk.Variable(value=self.defined_actions)
-        self.listbox_actions = tk.Listbox(
-            self,
-            listvariable=self.var_listbox_actions,
-            height=6,
-            selectmode=tk.EXTENDED,
-        )
-        self.listbox_actions.pack(expand=True, fill=tk.BOTH)
+        tk.Label(self, text="Defined Mappings").pack(fill=tk.X)
+        self.treeview = ttk.Treeview(columns=("shortcut", "target"), height=7)
+        self.treeview.heading("#0", text="Name")
+        self.treeview.heading("shortcut", text="Shortcut")
+        self.treeview.heading("target", text="Target")
+        for mapping in self.defined_actions:
+            self.treeview.insert(
+                "",
+                tk.END,
+                text=mapping.name,
+                values=(
+                    mapping.controller_state.describe(),
+                    mapping.target,
+                ),
+            )
+        self.treeview.pack(expand=True, fill=tk.BOTH)
 
         # --------------------------- connected controllers -------------------------- #
 
@@ -114,7 +121,6 @@ class MyApp(tk.Tk):
         listbox_controllers = tk.Listbox(
             self,
             listvariable=self.var_connected_controllers,
-            height=6,
             selectmode=tk.EXTENDED,
         )
         listbox_controllers.pack(expand=True, fill=tk.BOTH)
@@ -124,10 +130,10 @@ class MyApp(tk.Tk):
         self.thread = threading.Thread(
             target=controller_observer.run,
             daemon=True,
-            args=[self.defined_actions],
+            args=[self.defined_actions, True],
             kwargs={
                 "controller_callback": lambda update: self.var_connected_controllers.set(
-                    [f"{c.instance_id + 1}) {c.name}" for c in update]
+                    [f"{c.name}" for c in update]
                 )
             },
         )
@@ -168,22 +174,29 @@ class MyApp(tk.Tk):
 
     def open_add_actions(self, event=None):
         p = CreateActionPopup(self)
-        if p.result is not None:
-            self.defined_actions.append(p.result)
-            self.var_listbox_actions.set(self.defined_actions)
+        result = p.result
+        if result is not None:
+            self.defined_actions.append(result)
+            self.treeview.insert(
+                "",
+                tk.END,
+                text=result.name,
+                values=(
+                    result.controller_state.describe(),
+                    result.target,
+                ),
+                image=tk.PhotoImage(file=resources.APP_ICON_PNG),
+            )
             self.save_settings()
 
     def delete_action(self, event=None):
-        deleted_idcs = list(self.listbox_actions.curselection())
-        if len(deleted_idcs) > 0:
-            tmp = [
-                self.defined_actions[i]
-                for i in range(0, len(self.defined_actions))
-                if i not in deleted_idcs
-            ]
-            self.defined_actions.clear()
-            self.defined_actions.extend(tmp)
-            self.var_listbox_actions.set(self.defined_actions)
+        selection = self.treeview.selection()
+        for item in selection:
+            delete_idx = self.treeview.index(item)
+            self.treeview.delete(item)
+            self.defined_actions.pop(delete_idx)
+
+        if len(selection) > 0:
             self.save_settings()
 
     def load_settings(self):
@@ -195,7 +208,7 @@ class MyApp(tk.Tk):
         if self.settings_file.is_file():
             settings.update(json.loads(self.settings_file.read_text()))
             print(settings)
-            self.defined_actions = [Action.from_dict(d) for d in settings["actions"]]
+            self.defined_actions = [Shortcut.from_dict(d) for d in settings["actions"]]
         else:
             self.defined_actions = []
 

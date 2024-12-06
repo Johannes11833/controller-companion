@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 button_mapper = {
@@ -33,11 +33,14 @@ class ControllerState:
 
     def __init__(
         self,
-        active_buttons: List[int] = [],
+        active_buttons: Optional[List[int]] = None,
         d_pad_state: Tuple[int, int] = (0, 0),
     ):
-        self.active_buttons: List[int] = active_buttons
+        self.active_buttons: List[int] = active_buttons if active_buttons else []
         self.d_pad_state: Tuple[int, int] = d_pad_state
+
+    def __repr__(self):
+        return self.__str__()
 
     def __str__(self):
         self.active_buttons.sort()
@@ -53,7 +56,7 @@ class ControllerState:
             else ""
         )
 
-        return f'Shortcut<{s.removeprefix(",")}>'
+        return f'<{s.removeprefix(",")}>'
 
     def to_dict(self):
         return {

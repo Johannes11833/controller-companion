@@ -6,9 +6,11 @@ from tkinter import (
     StringVar,
     ttk,
 )
+from tkinter import messagebox
 
-from controller_companion.action import Action, ActionType
+from controller_companion.shortcut import Shortcut, ActionType
 from controller_companion.app import resources
+from controller_companion.app.placeholder_entry import PlaceholderEntry
 from controller_companion.controller_state import (
     ControllerState,
     button_mapper,
@@ -28,32 +30,49 @@ class CreateActionPopup(tk.Toplevel):
         self.var_d_pad = IntVar()
         self.var_action_type = StringVar()
         self.var_command = StringVar()
-        self.var_action_name = StringVar()
         self.result = None
 
-        frame1 = tk.Frame(master=self, height=50, padx=10, pady=10)
-        frame1.pack(fill=tk.X, side=tk.TOP, expand=True)
+        frame_inputs = ttk.LabelFrame(
+            master=self, height=50, text="Controller Shortcut"
+        )
+        frame_inputs.pack(fill=tk.X, side=tk.TOP, expand=True, padx=10, pady=(10, 5))
 
-        frame2 = tk.Frame(master=self, height=50, padx=10, pady=10)
-        frame2.pack(fill=tk.X, side=tk.TOP, expand=True)
+        frame_buttons = tk.Frame(master=frame_inputs, height=50, padx=5)
+        frame_buttons.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        frame3 = tk.Frame(master=self, height=50, padx=10, pady=10)
-        frame3.pack(fill=tk.X, side=tk.TOP, expand=True)
+        frame_d_pad = tk.Frame(master=frame_inputs, height=50, padx=5)
+        frame_d_pad.pack(fill=tk.X, side=tk.TOP, expand=True)
 
-        frame4 = tk.Frame(master=self, height=50, bg="gray", padx=10, pady=10)
-        frame4.pack(fill=tk.X, side=tk.TOP, expand=True)
+        frame_action = ttk.LabelFrame(
+            master=self, height=50, text="Action", padding=(0, 5, 5, 5)
+        )
+        frame_action.pack(fill=tk.X, side=tk.TOP, expand=True, padx=10, pady=5)
 
-        tk.Label(frame1, text="Buttons", anchor="w").grid(row=0, column=0, sticky="W")
+        frame_save = ttk.LabelFrame(
+            master=self, height=50, text="Save", padding=(0, 5, 0, 5)
+        )
+        frame_save.pack(fill=tk.X, side=tk.TOP, expand=True, padx=10, pady=(5, 10))
+
+        tk.Label(frame_buttons, text="Buttons", anchor="w").grid(
+            row=0, column=0, sticky="W"
+        )
         for column, button in enumerate(button_mapper.keys()):
             self.var_buttons[button] = IntVar()
-            check = Checkbutton(frame1, text=button, variable=self.var_buttons[button])
+            check = Checkbutton(
+                frame_buttons,
+                text=button,
+                variable=self.var_buttons[button],
+                anchor="w",
+            )
             check.grid(row=1, column=column)
 
-        tk.Label(frame2, text="D-Pad", anchor="w").grid(row=0, column=0, sticky="W")
+        tk.Label(frame_d_pad, text="D-Pad", anchor="w").grid(
+            row=0, column=0, sticky="W"
+        )
         self.var_d_pad.set(-1)
         for column, d_pad_state in enumerate(d_pad_mapper.keys()):
             check = Radiobutton(
-                frame2,
+                frame_d_pad,
                 text=d_pad_state,
                 variable=self.var_d_pad,
                 value=column,
@@ -61,37 +80,45 @@ class CreateActionPopup(tk.Toplevel):
             )
             check.grid(row=1, column=column)
 
-        tk.Label(frame3, text="Action").grid(row=0, column=0, sticky="W")
         tk.Label(
-            frame3,
-            text="Type",
+            frame_action,
+            text="Type:",
             padx=5,
         ).grid(row=1, column=0)
         combo = ttk.Combobox(
-            frame3,
+            frame_action,
             values=[e.value for e in ActionType],
             state="readonly",
             textvariable=self.var_action_type,
         )
+        combo.bind("<<ComboboxSelected>>", self.action_type_changed)
         self.var_action_type.set(ActionType.TASK_KILL_BY_NAME.value)
         combo.grid(row=1, column=1)
 
         tk.Label(
-            frame3,
-            text="Command to execute",
+            frame_action,
+            text="Target:",
             padx=5,
         ).grid(row=1, column=2)
-        tk.Entry(frame3, width=30, textvariable=self.var_command).grid(row=1, column=3)
-        self.var_command.set("explorer.exe")
-
-        tk.Label(frame4, text="Action Name", padx=5).grid(row=0, column=0, padx=5)
-        self.var_action_name.set("Hello world")
-        tk.Entry(frame4, width=30, textvariable=self.var_action_name).grid(
-            row=0, column=1, padx=5
+        self.entry_target_command = PlaceholderEntry(
+            frame_action,
+            textvariable=self.var_command,
         )
-        tk.Button(frame4, text="Save Mapping", command=self.on_save).grid(
+        frame_action.columnconfigure(3, weight=1)
+        self.entry_target_command.grid(row=1, column=3, sticky="nsew")
+
+        save_label = tk.Label(frame_save, text="Name:", padx=5)
+        save_label.grid(row=0, column=0, padx=5)
+        self.entry_name = PlaceholderEntry(
+            frame_save,
+            placeholder="name of the shortcut",
+            width=30,
+        )
+        self.entry_name.grid(row=0, column=1, padx=5)
+        tk.Button(frame_save, text="Save", command=self.on_save).grid(
             row=0, column=2, padx=5
         )
+        self.action_type_changed()
 
         # The following commands keep the popup on top.
         # Remove these if you want a program with 2 responding windows.
@@ -105,6 +132,8 @@ class CreateActionPopup(tk.Toplevel):
     def on_save(self):
 
         selected_buttons = []
+        target = self.var_command.get()
+        name = self.entry_name.get()
 
         for btn, var in self.var_buttons.items():
             if var.get() == 1:
@@ -116,14 +145,39 @@ class CreateActionPopup(tk.Toplevel):
         else:
             d_pad_action = list(d_pad_mapper.values())[selected_d_pad_index]
 
+        error = None
+        if len(selected_buttons) == 0 and d_pad_action == (0, 0):
+            error = "No controller shortcut was selected!"
+        elif target == "" or target == self.entry_target_command.placeholder:
+            error = "No target command was specified!"
+        elif name == "" or name == self.entry_name.placeholder:
+            error = "The name of the shortcut was not set!"
+        if error:
+            messagebox.showerror("Error", error)
+            return
+
         state = ControllerState(
             active_buttons=selected_buttons, d_pad_state=d_pad_action
         )  # save the return value to an instance variable.
-        self.result = Action(
+        self.result = Shortcut(
             action_type=ActionType(self.var_action_type.get()),
-            target=self.var_command.get(),
+            target=target,
             controller_state=state,
-            name=self.var_action_name.get(),
+            name=name,
         )
 
         self.destroy()
+
+    def action_type_changed(self, _=None):
+        action_type = ActionType(self.var_action_type.get())
+
+        if action_type == ActionType.TASK_KILL_BY_NAME:
+            self.entry_target_command.set_placeholder(
+                "name of task to kill (e.g. explorer.exe)"
+            )
+        elif action_type == ActionType.KEYBOARD_SHORTCUT:
+            self.entry_target_command.set_placeholder(
+                'keyboard shortcut (e.g. "f11", "alt+f4" or "volumeup")'
+            )
+        else:
+            self.entry_target_command.set_placeholder("custom arbitrary command")

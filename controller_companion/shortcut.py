@@ -11,7 +11,7 @@ class ActionType(Enum):
     KEYBOARD_SHORTCUT = "Keyboard Shortcut"
 
 
-class Action:
+class Shortcut:
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class Action:
             subprocess.run(self.target)
 
     def __str__(self):
-        return f"Action<name: {self.name}, target: {self.target}, type: {self.action_type}, {self.controller_state.describe()}>"
+        return f"Controller{self.controller_state.describe()} --> Action<name: {self.name}, target: {self.target}, type: {self.action_type.name}>"
 
     def to_dict(self):
         return {

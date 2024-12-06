@@ -7,3 +7,4 @@ class Controller:
     guid: str
     power_level: str
     instance_id: str
+    initialized: bool

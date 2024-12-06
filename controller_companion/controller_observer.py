@@ -4,7 +4,7 @@ from typing import Callable, Dict, List
 import pygame
 
 
-from controller_companion.action import Action, ActionType
+from controller_companion.shortcut import Shortcut, ActionType
 from controller_companion.controller import Controller
 from controller_companion.controller_state import (
     ControllerState,
@@ -19,7 +19,7 @@ do_run = True
 
 def check_combos(
     controller_states: Dict[int, ControllerState],
-    defined_actions: List[Action],
+    defined_actions: List[Shortcut],
 ):
     for instance_id, state in controller_states.items():
         for action in defined_actions:
@@ -29,7 +29,7 @@ def check_combos(
 
 
 def run(
-    defined_actions: Dict[str, Action] = {},
+    defined_actions: Dict[str, Shortcut] = {},
     debug: bool = False,
     controller_callback: Callable[[List[Controller]], None] = None,
 ):
@@ -81,7 +81,7 @@ def run(
     args = parser.parse_args()
     debug = args.debug or debug
     if args.valid_keys:
-        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Action.get_valid_keyboard_keys()}"
+        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Shortcut.get_valid_keyboard_keys()}"
 
     if args.mapping is not None:
         if len(args.mapping) != (
@@ -112,7 +112,7 @@ def run(
         state_counter = 0
         for t in args.task_kill:
             defined_actions.append(
-                Action(
+                Shortcut(
                     ActionType.TASK_KILL_BY_NAME,
                     target=t,
                     name=f'Kill "{t}"',
@@ -123,7 +123,7 @@ def run(
 
         for c in args.custom:
             defined_actions.append(
-                Action(
+                Shortcut(
                     ActionType.CUSTOM_COMMAND,
                     target=c,
                     name=f'Run command "{c}"',
@@ -134,7 +134,7 @@ def run(
 
         for s in args.shortcut:
             defined_actions.append(
-                Action(
+                Shortcut(
                     ActionType.KEYBOARD_SHORTCUT,
                     target=s,
                     name=f'Shortcut "{s}"',
@@ -157,6 +157,16 @@ def run(
 
     t = threading.current_thread()
 
+    # List the available joystick devices
+    joysticks = [
+        pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())
+    ]
+
+    # # Initialize all detected joysticks
+    # for joystick in joysticks:
+    #     joystick.init()
+    #     print(f"Joystick {joystick.get_id()}: {joystick.get_name()}")
+
     while getattr(t, "do_run", True):
         for event in pygame.event.get():
             instance_id = event.dict.get("instance_id", None)
@@ -174,7 +184,7 @@ def run(
             elif event.type in [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED]:
                 if event.type == pygame.JOYDEVICEADDED:
                     print("Controller added:", event)
-                    c = pygame.joystick.Joystick(event.dict["device_index"])
+                    c = pygame.joystick.Joystick(event.device_index)
                     c.init()
                     instance_id = c.get_instance_id()
                     controllers[instance_id] = Controller(
@@ -182,6 +192,7 @@ def run(
                         guid=c.get_guid(),
                         power_level=c.get_power_level(),
                         instance_id=c.get_instance_id(),
+                        initialized=c.get_init(),
                     )
                     controller_states[instance_id] = ControllerState()
                 else:
@@ -196,6 +207,9 @@ def run(
                 # this is relevant as e.g. thumbstick updates spam lots of updates
                 continue
             check_combos(controller_states, defined_actions)
+
+            if debug:
+                print(controller_states)
 
         pygame.time.wait(250)
 
@@ -214,7 +228,7 @@ def get_connected_controllers() -> List[pygame.joystick.JoystickType]:
 
 if __name__ == "__main__":
     defined_actions = [
-        Action(
+        Shortcut(
             name="close acrobat",
             action_type=ActionType.TASK_KILL_BY_NAME,
             target="Acrobat.exe",
