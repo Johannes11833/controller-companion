@@ -38,28 +38,25 @@ jobs:
     - name: Build executable
       run: |
         poetry run build
+        ls -R ./dist/
 
     - name: Create Artifact (Windows)
       if: matrix.os == 'windows-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "${{env.APP_NAME}}.exe"
+        artifacts: "dist/${{env.APP_NAME}}.exe"
         allowUpdates: true
 
     - name: Create Artifact (Linux)
       if: matrix.os == 'ubuntu-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: ${{env.APP_NAME}}
+        artifacts: "dist/${{env.APP_NAME}}"
         allowUpdates: true
 
     - name: Create Artifact (macOS)
       if: matrix.os == 'macos-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: ${{env.APP_NAME}}
+        artifacts: "dist/${{env.APP_NAME}}"
         allowUpdates: true
-
-
-    - name: List files in dist folder
-      run: ls -R ./dist/
