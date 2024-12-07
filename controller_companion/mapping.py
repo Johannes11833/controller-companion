@@ -7,11 +7,11 @@ from controller_companion.controller_state import ControllerState
 
 class ActionType(Enum):
     TASK_KILL_BY_NAME = "Kill by Name"
-    CUSTOM_COMMAND = "Custom Command"
+    CONSOLE_COMMAND = "Console Command"
     KEYBOARD_SHORTCUT = "Keyboard Shortcut"
 
 
-class Shortcut:
+class Mapping:
 
     def __init__(
         self,

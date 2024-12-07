@@ -11,14 +11,14 @@ import platform
 from tkinter import ttk
 import pystray
 from PIL import Image
-from controller_companion.shortcut import Shortcut
+from controller_companion.mapping import Mapping
 from controller_companion.app import resources
-from controller_companion.app.about import AboutScreen
-from controller_companion.app.create_action import CreateActionPopup
+from controller_companion.app.popup_about import AboutScreen
+from controller_companion.app.popup_create_action import CreateActionPopup
 import controller_companion.controller_observer as controller_observer
 
 
-class MyApp(tk.Tk):
+class ControllerCompanion(tk.Tk):
     def __init__(self, launch_minimized=False):
         super().__init__()
 
@@ -126,15 +126,17 @@ class MyApp(tk.Tk):
         listbox_controllers.pack(expand=True, fill=tk.BOTH)
 
         # ---------------------------------------------------------------------------- #
-
         self.thread = threading.Thread(
             target=controller_observer.run,
             daemon=True,
-            args=[self.defined_actions, True],
+            args=[
+                self.defined_actions,
+            ],
             kwargs={
+                "debug": self.settings.get("debug", 0) == 1,
                 "controller_callback": lambda update: self.var_connected_controllers.set(
                     [f"{c.name}" for c in update]
-                )
+                ),
             },
         )
         self.thread.start()
@@ -203,12 +205,12 @@ class MyApp(tk.Tk):
         settings = {
             "minimize_on_exit": 1,
             "auto_start": 0,
+            "debug": 0,
         }
 
         if self.settings_file.is_file():
             settings.update(json.loads(self.settings_file.read_text()))
-            print(settings)
-            self.defined_actions = [Shortcut.from_dict(d) for d in settings["actions"]]
+            self.defined_actions = [Mapping.from_dict(d) for d in settings["actions"]]
         else:
             self.defined_actions = []
 
@@ -245,8 +247,10 @@ class MyApp(tk.Tk):
         self.save_settings()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Controller Companion UI App.")
+def run():
+    parser = argparse.ArgumentParser(
+        description="Lauch the Controller Companion UI App."
+    )
     parser.add_argument(
         "-m",
         "--minimized",
@@ -256,5 +260,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    app = MyApp(launch_minimized=args.minimized)
+    app = ControllerCompanion(launch_minimized=args.minimized)
     app.mainloop()
+
+
+if __name__ == "__main__":
+    run()

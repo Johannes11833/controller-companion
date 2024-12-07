@@ -8,9 +8,9 @@ from tkinter import (
 )
 from tkinter import messagebox
 
-from controller_companion.shortcut import Shortcut, ActionType
+from controller_companion.mapping import Mapping, ActionType
 from controller_companion.app import resources
-from controller_companion.app.placeholder_entry import PlaceholderEntry
+from controller_companion.app.widgets.placeholder_entry import PlaceholderEntry
 from controller_companion.controller_state import (
     ControllerState,
     button_mapper,
@@ -159,7 +159,7 @@ class CreateActionPopup(tk.Toplevel):
         state = ControllerState(
             active_buttons=selected_buttons, d_pad_state=d_pad_action
         )  # save the return value to an instance variable.
-        self.result = Shortcut(
+        self.result = Mapping(
             action_type=ActionType(self.var_action_type.get()),
             target=target,
             controller_state=state,
@@ -180,4 +180,6 @@ class CreateActionPopup(tk.Toplevel):
                 'keyboard shortcut (e.g. "f11", "alt+f4" or "volumeup")'
             )
         else:
-            self.entry_target_command.set_placeholder("custom arbitrary command")
+            self.entry_target_command.set_placeholder(
+                "custom arbitrary console command"
+            )

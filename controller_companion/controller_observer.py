@@ -1,10 +1,14 @@
 import argparse
+import os
 import threading
 from typing import Callable, Dict, List
+
+# import pygame, hide welcome message
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes"
 import pygame
 
 
-from controller_companion.shortcut import Shortcut, ActionType
+from controller_companion.mapping import Mapping, ActionType
 from controller_companion.controller import Controller
 from controller_companion.controller_state import (
     ControllerState,
@@ -19,7 +23,7 @@ do_run = True
 
 def check_combos(
     controller_states: Dict[int, ControllerState],
-    defined_actions: List[Shortcut],
+    defined_actions: List[Mapping],
 ):
     for instance_id, state in controller_states.items():
         for action in defined_actions:
@@ -29,7 +33,7 @@ def check_combos(
 
 
 def run(
-    defined_actions: Dict[str, Shortcut] = {},
+    defined_actions: Dict[str, Mapping] = {},
     debug: bool = False,
     controller_callback: Callable[[List[Controller]], None] = None,
 ):
@@ -44,8 +48,8 @@ def run(
     )
     parser.add_argument(
         "-c",
-        "--custom",
-        help="Execute custom commands.",
+        "--console",
+        help="Execute console commands.",
         nargs="+",
         type=str,
         default=[],
@@ -59,9 +63,9 @@ def run(
         default=[],
     )
     parser.add_argument(
-        "-m",
-        "--mapping",
-        help="Mapping.",
+        "-i",
+        "--input",
+        help="Input controller key combination.",
         nargs="+",
         type=str,
     )
@@ -81,20 +85,20 @@ def run(
     args = parser.parse_args()
     debug = args.debug or debug
     if args.valid_keys:
-        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Shortcut.get_valid_keyboard_keys()}"
+        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Mapping.get_valid_keyboard_keys()}"
 
-    if args.mapping is not None:
-        if len(args.mapping) != (
-            len(args.task_kill) + len(args.custom) + len(args.shortcut)
+    if args.input is not None:
+        if len(args.input) != (
+            len(args.task_kill) + len(args.console) + len(args.shortcut)
         ):
             raise Exception(
-                "Length of --mapping needs to match with combined sum of commands provided to --task_kill, --custom and --shortcut"
+                "Length of --mapping needs to match with combined sum of commands provided to --task_kill, --console and --shortcut"
             )
 
         states = []
         defined_actions = []
 
-        for m in args.mapping:
+        for m in args.input:
             keys = m.split(",")
             buttons = []
             d_pad = (0, 0)
@@ -112,7 +116,7 @@ def run(
         state_counter = 0
         for t in args.task_kill:
             defined_actions.append(
-                Shortcut(
+                Mapping(
                     ActionType.TASK_KILL_BY_NAME,
                     target=t,
                     name=f'Kill "{t}"',
@@ -121,10 +125,10 @@ def run(
             )
             state_counter += 1
 
-        for c in args.custom:
+        for c in args.console:
             defined_actions.append(
-                Shortcut(
-                    ActionType.CUSTOM_COMMAND,
+                Mapping(
+                    ActionType.CONSOLE_COMMAND,
                     target=c,
                     name=f'Run command "{c}"',
                     controller_state=states[state_counter],
@@ -134,7 +138,7 @@ def run(
 
         for s in args.shortcut:
             defined_actions.append(
-                Shortcut(
+                Mapping(
                     ActionType.KEYBOARD_SHORTCUT,
                     target=s,
                     name=f'Shortcut "{s}"',
@@ -142,6 +146,9 @@ def run(
                 )
             )
             state_counter += 1
+
+    if debug:
+        print("Debug messages are enabled.")
 
     print("\n--------------------")
     print("Defined Mappings:")
@@ -157,15 +164,11 @@ def run(
 
     t = threading.current_thread()
 
-    # List the available joystick devices
-    joysticks = [
-        pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())
-    ]
-
-    # # Initialize all detected joysticks
-    # for joystick in joysticks:
-    #     joystick.init()
-    #     print(f"Joystick {joystick.get_id()}: {joystick.get_name()}")
+    # Initialize all detected joysticks
+    # Apparently with more than one controller connected this is required for all controllers to raise button/ d-pad events
+    # even though they will also raise an pygame.JOYDEVICEADDED event right from the start.
+    for i in range(pygame.joystick.get_count()):
+        pygame.joystick.Joystick(i).init()
 
     while getattr(t, "do_run", True):
         for event in pygame.event.get():
@@ -228,7 +231,7 @@ def get_connected_controllers() -> List[pygame.joystick.JoystickType]:
 
 if __name__ == "__main__":
     defined_actions = [
-        Shortcut(
+        Mapping(
             name="close acrobat",
             action_type=ActionType.TASK_KILL_BY_NAME,
             target="Acrobat.exe",

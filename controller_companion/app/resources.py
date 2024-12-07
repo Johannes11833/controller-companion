@@ -1,9 +1,17 @@
 from pathlib import Path
 import sys
+from typing import Union
 
 
-def __get_resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller"""
+def __get_resource_path(relative_path: Union[Path, str]) -> Path:
+    """Get correct path to resource, works for dev and for executables.
+
+    Args:
+        relative_path (str): Path relative to the project root.
+
+    Returns:
+        Path: Full path to the requested resource.
+    """
     # for executables, _MEIPASS is set, in dev mode we will use the repo root.
     base_path = getattr(sys, "_MEIPASS", "")
     return Path(base_path, relative_path)
