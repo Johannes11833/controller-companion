@@ -1,0 +1,63 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - "v*"
+
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest']
+        # os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
+
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10.x
+
+    - name: Install Python dependencies
+      run: |
+        pip install poetry
+        poetry install --with dev
+
+    - name: Install the dependencies
+      run: |
+        poetry install --with dev
+
+    - name: Build executable
+      run: |
+        poetry run build
+
+    - name: Create Artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-executables
+        path: dist/
+
+    - name: Create Artifact (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-executables
+        path: dist/
+
+    - name: Create Artifact (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-executables
+        path: dist/
+
+    - name: List files in dist folder
+      run: ls -R ./dist/
