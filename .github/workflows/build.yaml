@@ -32,7 +32,7 @@ jobs:
 
     - name: Install Inno Setup
       if: matrix.os == 'windows-latest'
-      run: winget install -e --id JRSoftware.InnoSetup --location "C:\inno_setup"
+      run: choco install innosetup
 
     - name: Install Python dependencies
       run: |
@@ -51,7 +51,7 @@ jobs:
     - name: Build Installer (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        C:\inno_setup\ISCC.exe inno_setup.iss /DAppVersion=${{env.VERSION}}
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' inno_setup.iss /DAppVersion=${{env.VERSION}}
         ls ./dist/
 
     - name: Create Artifact (Windows)
