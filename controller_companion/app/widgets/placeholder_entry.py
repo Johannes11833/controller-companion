@@ -12,13 +12,13 @@ class PlaceholderEntry(tk.Entry):
         self.bind("<FocusOut>", self.__on_focus_out)
         self.focused = False
 
-    def __on_entry_click(self, _):
+    def __on_entry_click(self, _=None):
         if self.get() == self.placeholder:
             self.delete(0, tk.END)
             self.configure(foreground="black")
         self.focused = True
 
-    def __on_focus_out(self, _):
+    def __on_focus_out(self, _=None):
         if self.get() == "":
             self.insert(0, self.placeholder)
             self.configure(foreground="gray")
@@ -30,3 +30,8 @@ class PlaceholderEntry(tk.Entry):
             self.insert(0, placeholder)
 
         self.placeholder = placeholder
+
+    def set_text(self, text: str):
+        self.delete(0, tk.END)
+        self.insert(0, text)
+        self.__on_entry_click()

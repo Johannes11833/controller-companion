@@ -37,115 +37,6 @@ def run(
     debug: bool = False,
     controller_callback: Callable[[List[Controller]], None] = None,
 ):
-    parser = argparse.ArgumentParser(description="Controller Companion.")
-    parser.add_argument(
-        "-t",
-        "--task_kill",
-        help="Kill tasks by their name.",
-        nargs="+",
-        type=str,
-        default=[],
-    )
-    parser.add_argument(
-        "-c",
-        "--console",
-        help="Execute console commands.",
-        nargs="+",
-        type=str,
-        default=[],
-    )
-    parser.add_argument(
-        "-s",
-        "--shortcut",
-        help='Keyboard shortcut, where each shortcut is defined by a number of keys separated by "+" (e.g. "alt+f4").',
-        nargs="+",
-        type=str,
-        default=[],
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        help="Input controller key combination.",
-        nargs="+",
-        type=str,
-    )
-    parser.add_argument(
-        "--valid-keys",
-        help="List all valid keys.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        help="Enable debug messages.",
-        action="store_true",
-        default=False,
-    )
-    args = parser.parse_args()
-    debug = args.debug or debug
-    if args.valid_keys:
-        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Mapping.get_valid_keyboard_keys()}"
-
-    if args.input is not None:
-        if len(args.input) != (
-            len(args.task_kill) + len(args.console) + len(args.shortcut)
-        ):
-            raise Exception(
-                "Length of --mapping needs to match with combined sum of commands provided to --task_kill, --console and --shortcut"
-            )
-
-        states = []
-        defined_actions = []
-
-        for m in args.input:
-            keys = m.split(",")
-            buttons = []
-            d_pad = (0, 0)
-            for input in keys:
-                if input in button_mapper:
-                    buttons.append(button_mapper[input])
-                elif input in d_pad_mapper:
-                    d_pad = d_pad_mapper[input]
-                else:
-                    raise Exception(
-                        f"key {input} is not a valid input. Valid options are {valid_inputs}"
-                    )
-            states.append(ControllerState(buttons, d_pad))
-
-        state_counter = 0
-        for t in args.task_kill:
-            defined_actions.append(
-                Mapping(
-                    ActionType.TASK_KILL_BY_NAME,
-                    target=t,
-                    name=f'Kill "{t}"',
-                    controller_state=states[state_counter],
-                )
-            )
-            state_counter += 1
-
-        for c in args.console:
-            defined_actions.append(
-                Mapping(
-                    ActionType.CONSOLE_COMMAND,
-                    target=c,
-                    name=f'Run command "{c}"',
-                    controller_state=states[state_counter],
-                )
-            )
-            state_counter += 1
-
-        for s in args.shortcut:
-            defined_actions.append(
-                Mapping(
-                    ActionType.KEYBOARD_SHORTCUT,
-                    target=s,
-                    name=f'Shortcut "{s}"',
-                    controller_state=states[state_counter],
-                )
-            )
-            state_counter += 1
 
     if debug:
         print("Debug messages are enabled.")
@@ -223,6 +114,120 @@ def run(
         pygame.time.wait(250)
 
     pygame.quit()
+
+
+def cli():
+    parser = argparse.ArgumentParser(description="Controller Companion.")
+    parser.add_argument(
+        "-t",
+        "--task_kill",
+        help="Kill tasks by their name.",
+        nargs="+",
+        type=str,
+        default=[],
+    )
+    parser.add_argument(
+        "-c",
+        "--console",
+        help="Execute console commands.",
+        nargs="+",
+        type=str,
+        default=[],
+    )
+    parser.add_argument(
+        "-s",
+        "--shortcut",
+        help='Keyboard shortcut, where each shortcut is defined by a number of keys separated by "+" (e.g. "alt+f4").',
+        nargs="+",
+        type=str,
+        default=[],
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        help="Input controller key combination.",
+        nargs="+",
+        type=str,
+    )
+    parser.add_argument(
+        "--valid-keys",
+        help="List all valid keys.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        help="Enable debug messages.",
+        action="store_true",
+        default=False,
+    )
+    args = parser.parse_args()
+    debug = args.debug
+    if args.valid_keys:
+        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Mapping.get_valid_keyboard_keys()}"
+
+    if args.input is not None:
+        if len(args.input) != (
+            len(args.task_kill) + len(args.console) + len(args.shortcut)
+        ):
+            raise Exception(
+                "Length of --mapping needs to match with combined sum of commands provided to --task_kill, --console and --shortcut"
+            )
+
+        states = []
+        defined_actions = []
+
+        for m in args.input:
+            keys = m.split(",")
+            buttons = []
+            d_pad = (0, 0)
+            for input in keys:
+                if input in button_mapper:
+                    buttons.append(button_mapper[input])
+                elif input in d_pad_mapper:
+                    d_pad = d_pad_mapper[input]
+                else:
+                    raise Exception(
+                        f"key {input} is not a valid input. Valid options are {valid_inputs}"
+                    )
+            states.append(ControllerState(buttons, d_pad))
+
+        state_counter = 0
+        for t in args.task_kill:
+            defined_actions.append(
+                Mapping(
+                    ActionType.TASK_KILL_BY_NAME,
+                    target=t,
+                    name=f'Kill "{t}"',
+                    controller_state=states[state_counter],
+                )
+            )
+            state_counter += 1
+
+        for c in args.console:
+            defined_actions.append(
+                Mapping(
+                    ActionType.CONSOLE_COMMAND,
+                    target=c,
+                    name=f'Run command "{c}"',
+                    controller_state=states[state_counter],
+                )
+            )
+            state_counter += 1
+
+        for s in args.shortcut:
+            defined_actions.append(
+                Mapping(
+                    ActionType.KEYBOARD_SHORTCUT,
+                    target=s,
+                    name=f'Shortcut "{s}"',
+                    controller_state=states[state_counter],
+                )
+            )
+            state_counter += 1
+
+    run(defined_actions=defined_actions, debug=debug)
 
 
 if __name__ == "__main__":

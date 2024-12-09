@@ -24,6 +24,6 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.poetry.scripts]
-controller_companion = "controller_companion.controller_observer:run"
-controller_companion_ui = "controller_companion.app.app:run"
+controller_companion = "controller_companion.controller_observer:cli"
+controller_companion_ui = "controller_companion.app.app:cli"
 build = "controller_companion.pyinstaller:install"

@@ -1,12 +1,14 @@
 import tkinter as tk
 from tkinter import (
     Checkbutton,
+    Event,
     IntVar,
     Radiobutton,
     StringVar,
     ttk,
 )
 from tkinter import messagebox
+from controller_companion import logger
 
 from controller_companion.mapping import Mapping, ActionType
 from controller_companion.app import resources
@@ -120,6 +122,9 @@ class CreateActionPopup(tk.Toplevel):
         )
         self.action_type_changed()
 
+        self.pressed_keys = set()
+        self.bind("<KeyPress>", self.on_key_press)
+
         # The following commands keep the popup on top.
         # Remove these if you want a program with 2 responding windows.
         # These commands must be at the end of __init__
@@ -169,17 +174,67 @@ class CreateActionPopup(tk.Toplevel):
         self.destroy()
 
     def action_type_changed(self, _=None):
-        action_type = ActionType(self.var_action_type.get())
+        self.action_type = ActionType(self.var_action_type.get())
 
-        if action_type == ActionType.TASK_KILL_BY_NAME:
+        if self.action_type == ActionType.TASK_KILL_BY_NAME:
             self.entry_target_command.set_placeholder(
                 "name of task to kill (e.g. explorer.exe)"
             )
-        elif action_type == ActionType.KEYBOARD_SHORTCUT:
-            self.entry_target_command.set_placeholder(
-                'keyboard shortcut (e.g. "f11", "alt+f4" or "volumeup")'
-            )
+        elif self.action_type == ActionType.KEYBOARD_SHORTCUT:
+            self.pressed_keys.clear()
+            self.entry_target_command.set_placeholder("click here, then enter shortcut")
         else:
             self.entry_target_command.set_placeholder(
                 "custom arbitrary console command"
             )
+
+    def on_key_press(self, event: Event):
+        valid_keys = Mapping.get_valid_keyboard_keys()
+        if self.action_type == ActionType.KEYBOARD_SHORTCUT:
+            key = event.char if event.char in valid_keys else event.keysym
+            key = (
+                key.lower()
+                .replace("_l", "")
+                .replace("_r", "")
+                .replace("control", "ctrl")
+                .replace("prior", "pageup")
+                .replace("next", "pagedown")
+            )
+            # XF86AudioLowerVolume
+            if "audiolower" in key:
+                key = "volumedown"
+            # XF86AudioRaiseVolume
+            elif "audioraise" in key:
+                key = "volumeup"
+            # XF86AudioMute
+            elif "audiomute" in key:
+                key = "volumemute"
+            elif key == "\t":
+                key = "tab"
+
+            if not key in valid_keys:
+                logger.warning(f"Unknown key event {event}")
+                return
+
+            if self.entry_target_command.focused:
+                if key in ["escape", "backspace"]:
+                    self.pressed_keys.clear()
+                elif key != "+":
+                    self.pressed_keys.add(key)
+
+                # sort keys
+                sorted_keys = list(self.pressed_keys)
+                ranks = ["ctrl", "win", "command", "alt", "shift"]
+                # 24 f keys supported by PyAutoGUI
+                f_keys = [f"f{i}" for i in range(1, 25)]
+                ranks.extend(f_keys)
+                sorted_keys.sort(
+                    key=lambda k: (
+                        str(ranks.index(k))
+                        if k in ranks
+                        else f"_{list(self.pressed_keys).index(k)}"
+                    )
+                )
+
+                self.entry_target_command.set_text("+".join(sorted_keys))
+                return "break"
