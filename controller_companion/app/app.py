@@ -135,7 +135,7 @@ class ControllerCompanion(tk.Tk):
             kwargs={
                 "debug": self.settings.get("debug", 0) == 1,
                 "controller_callback": lambda update: self.var_connected_controllers.set(
-                    [f"{c.name}" for c in update]
+                    [f"       {c.name}" for c in update]
                 ),
             },
         )

@@ -21,6 +21,10 @@ jobs:
 
 
     steps:
+    - name: Set poetry version name (remove v prefix)
+      run: |
+        echo "VERSION_POETRY=${VERSION#v}" >> $GITHUB_ENV
+      shell: bash
     - name: Checkout code
       uses: actions/checkout@v3
 
@@ -33,13 +37,10 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: choco install innosetup
 
-    - name: Install Python dependencies
+    - name: Install package & update version
       run: |
         pip install poetry
-        poetry install --with dev
-
-    - name: Install the dependencies
-      run: |
+        poetry version "${{env.VERSION_POETRY}}"
         poetry install --with dev
 
     - name: Build executable
@@ -50,7 +51,7 @@ jobs:
     - name: Build Installer (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' inno_setup.iss /DAppVersion=${{env.VERSION}}
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' inno_setup.iss /DAppVersion=${{env.VERSION_POETRY}}
         ls ./dist/
 
     - name: Create Artifact (Windows)

@@ -52,6 +52,9 @@ Source: "{#Path}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs creat
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+[InstallDelete]
+; .dist-info folders contain a version name and thus need to be removed when updating (fixes old version name shown in about dialog)
+Type: filesandordirs; Name: {app}\_internal\*.dist-info
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
