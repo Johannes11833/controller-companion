@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "controller-companion"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = [
     "Johannes Gundlach <24914225+Johannes11833@users.noreply.github.com>",
