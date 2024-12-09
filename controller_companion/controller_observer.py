@@ -190,8 +190,11 @@ def run(
                     c = pygame.joystick.Joystick(event.device_index)
                     c.init()
                     instance_id = c.get_instance_id()
+                    name = c.get_name()
+
                     controllers[instance_id] = Controller(
-                        name=c.get_name(),
+                        # on windows the controller name is wrapped inside "Controller()" when connected via USB
+                        name=name.removeprefix("Controller (").removesuffix(")"),
                         guid=c.get_guid(),
                         power_level=c.get_power_level(),
                         instance_id=c.get_instance_id(),
@@ -204,7 +207,10 @@ def run(
                     controller_states.pop(instance_id)
 
                 if controller_callback:
-                    controller_callback(list(controllers.values()))
+                    # call the callback through a thread so it does not keep the observer waiting (e.g. app in background)
+                    threading.Thread(
+                        target=controller_callback, args=[list(controllers.values())]
+                    ).start()
             else:
                 # skip all other events. this way only relevant updates are processed below.
                 # this is relevant as e.g. thumbstick updates spam lots of updates
@@ -217,16 +223,6 @@ def run(
         pygame.time.wait(250)
 
     pygame.quit()
-
-
-def get_connected_controllers() -> List[pygame.joystick.JoystickType]:
-    pygame.init()
-    pygame.joystick.init()
-
-    controllers = [
-        pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())
-    ]
-    return [f"{c.get_name()} ({(c.get_guid())})" for c in controllers]
 
 
 if __name__ == "__main__":

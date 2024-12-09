@@ -10,8 +10,14 @@ env:
   VERSION:  ${{ github.ref_name }}
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set poetry version name (remove v prefix)
+      run: echo "VERSION_POETRY=${VERSION#v}" >> $GITHUB_ENV
   build:
     runs-on: ${{ matrix.os }}
+    needs: setup
     permissions:
       contents: write
     strategy:
@@ -38,9 +44,8 @@ jobs:
         pip install poetry
         poetry install --with dev
 
-    - name: Install the dependencies
-      run: |
-        poetry install --with dev
+    - name: Update package version
+      run: poetry version $VERSION_POETRY
 
     - name: Build executable
       run: |
