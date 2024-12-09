@@ -39,13 +39,11 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: choco install innosetup
 
-    - name: Install Python dependencies
+    - name: Install package & update version
       run: |
         pip install poetry
+        poetry version $VERSION_POETRY
         poetry install --with dev
-
-    - name: Update package version
-      run: poetry version $VERSION_POETRY
 
     - name: Build executable
       run: |
