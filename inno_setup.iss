@@ -3,7 +3,7 @@
 
 #define MyAppName "Controller Companion"
 #define MyAppPublisher "Johannes Gundlach"
-#define MyAppURL "https://www.example.com/"
+#define MyAppURL "https://github.com/Johannes11833/controller-companion"
 #define MyAppExeName "controller-companion.exe"
 #define Path "dist\controller-companion"
 #define OutputName "controller-companion-" + AppVersion + "-setup"
