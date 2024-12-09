@@ -6,7 +6,8 @@ on:
       - "v*"
 
 env:
-  APP_NAME: app
+  APP_NAME: controller-companion
+  VERSION:  ${{ github.ref_name }}
 
 jobs:
   build:
@@ -16,7 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
+        os: ['windows-latest']
+        # os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
 
 
     steps:
@@ -27,6 +29,10 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: 3.10.x
+
+    - name: Install Inno Setup
+      if: matrix.os == 'windows-latest'
+      run: winget install -e --id JRSoftware.InnoSetup --location "C:\inno_setup"
 
     - name: Install Python dependencies
       run: |
@@ -42,23 +48,29 @@ jobs:
         poetry run build
         ls -R ./dist/
 
+    - name: Build Installer (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        C:\inno_setup\ISCC.exe inno_setup.iss /DAppVersion=${{env.VERSION}}
+        ls ./dist/
+
     - name: Create Artifact (Windows)
       if: matrix.os == 'windows-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "dist/${{env.APP_NAME}}.exe"
+        artifacts: "dist/*.zip, dist/*.exe"
         allowUpdates: true
 
     - name: Create Artifact (Linux)
       if: matrix.os == 'ubuntu-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "dist/${{env.APP_NAME}}"
+        artifacts: "dist/*.zip"
         allowUpdates: true
 
     - name: Create Artifact (macOS)
       if: matrix.os == 'macos-latest'
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "dist/${{env.APP_NAME}}"
+        artifacts: "dist/*.zip"
         allowUpdates: true
