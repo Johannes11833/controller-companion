@@ -92,7 +92,6 @@ class ControllerCompanion(tk.Tk):
         # Help Menu
         help_ = Menu(menu, tearoff=0)
         menu.add_cascade(label="Help", menu=help_)
-        help_.add_command(label="Help", command=None)
         help_.add_command(label="About", command=lambda: AboutScreen(self))
 
         # ---------------------------------------------------------------------------- #
@@ -142,7 +141,10 @@ class ControllerCompanion(tk.Tk):
         self.thread.start()
 
         if launch_minimized:
-            self.minimize_to_tray(is_launch=True)
+            # use after to make initial controller connected callback work
+            # otherwise, we would get a RuntimeError: main thread is not in main loop
+            # when executing the controller_callback above.
+            self.after(100, self.minimize_to_tray, [True])
 
     def minimize_to_tray(self, is_launch: bool = False):
         if self.var_settings_minimize_on_close.get() == 0 and not is_launch:
@@ -164,7 +166,7 @@ class ControllerCompanion(tk.Tk):
             icon.stop()
         self.quit_window()
 
-    def quit_window(self, event=None):
+    def quit_window(self, _=None):
         self.thread.do_run = False
         self.thread.join()
         print("Thread ended")
@@ -174,7 +176,7 @@ class ControllerCompanion(tk.Tk):
         icon.stop()
         self.after(0, self.deiconify)
 
-    def open_add_actions(self, event=None):
+    def open_add_actions(self, _=None):
         p = CreateActionPopup(self)
         result = p.result
         if result is not None:
@@ -191,7 +193,7 @@ class ControllerCompanion(tk.Tk):
             )
             self.save_settings()
 
-    def delete_action(self, event=None):
+    def delete_action(self, _=None):
         selection = self.treeview.selection()
         for item in selection:
             delete_idx = self.treeview.index(item)
@@ -240,14 +242,14 @@ class ControllerCompanion(tk.Tk):
                 "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/controller_companion.bat",
             )
             if autostart:
-                bat_file.write_text(f'start "" "{executable.absolute()}"')
+                bat_file.write_text(f'start "" "{executable.absolute()}" "-m"')
             else:
                 bat_file.unlink(missing_ok=True)
 
         self.save_settings()
 
 
-def run():
+def cli():
     parser = argparse.ArgumentParser(
         description="Lauch the Controller Companion UI App."
     )
@@ -265,4 +267,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    cli()
