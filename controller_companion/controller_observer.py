@@ -1,7 +1,13 @@
 import argparse
+import logging
 import os
 import threading
+import traceback
 from typing import Callable, Dict, List
+from rich import print
+from rich.table import Table
+
+from controller_companion import logger
 
 # import pygame, hide welcome message
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes"
@@ -17,39 +23,58 @@ from controller_companion.controller_state import (
 )
 
 
-valid_inputs = list(button_mapper.keys()) + list(d_pad_mapper.keys())
+VALID_KEYBOARD_KEYS = list(button_mapper.keys()) + list(d_pad_mapper.keys())
 do_run = True
 
 
-def check_combos(
-    controller_states: Dict[int, ControllerState],
+def start_observer(
     defined_actions: List[Mapping],
-):
-    for instance_id, state in controller_states.items():
-        for action in defined_actions:
-            if action.controller_state.describe() == state.describe():
-                print(f"Combo detected: {action} on controller {instance_id}")
-                action.execute()
-
-
-def run(
-    defined_actions: Dict[str, Mapping] = {},
     debug: bool = False,
     controller_callback: Callable[[List[Controller]], None] = None,
+    restart_delay_ms: int = 1000,
 ):
 
     if debug:
+        logger.setLevel(logging.DEBUG)
         print("Debug messages are enabled.")
+    else:
+        logger.setLevel(logging.INFO)
 
-    print("\n--------------------")
-    print("Defined Mappings:")
-    for action in defined_actions:
-        print(str(action))
-    print("--------------------\n")
+    table = Table(title="Defined Mappings")
+    table.add_column("Name", justify="left", style="cyan")
+    table.add_column("Shortcut", justify="left", style="magenta")
+    table.add_column("Action", justify="left", style="green")
+    for mapping in defined_actions:
+        table.add_row(mapping.name, mapping.controller_state.describe(), mapping.target)
+    print(table)
 
-    controllers: Dict[int, pygame.joystick.JoystickType] = {}
-    controller_states: Dict[int, ControllerState] = {}
+    try:
+        __process_pygame_events(
+            defined_actions=defined_actions,
+            controller_callback=controller_callback,
+        )
+    except Exception:
+        logger.error(
+            f"An exception occurred inside __process_pygame_events:\n{traceback.format_exc()}"
+        )
+        logger.info(f"restarting controller observation in {restart_delay_ms}s")
+        pygame.time.wait(restart_delay_ms)
+        return start_observer(
+            defined_actions=defined_actions,
+            debug=debug,
+            controller_callback=controller_callback,
+            restart_delay_ms=restart_delay_ms,
+        )
 
+    pygame.time.wait(250)
+
+    pygame.quit()
+
+
+def __process_pygame_events(
+    defined_actions: Dict[str, Mapping] = {},
+    controller_callback: Callable[[List[Controller]], None] = None,
+):
     pygame.init()
     pygame.joystick.init()
 
@@ -60,6 +85,9 @@ def run(
     # even though they will also raise an pygame.JOYDEVICEADDED event right from the start.
     for i in range(pygame.joystick.get_count()):
         pygame.joystick.Joystick(i).init()
+
+    controllers: Dict[int, pygame.joystick.JoystickType] = {}
+    controller_states: Dict[int, ControllerState] = {}
 
     while getattr(t, "do_run", True):
         for event in pygame.event.get():
@@ -77,7 +105,7 @@ def run(
                 controller_states[instance_id].d_pad_state = event.dict["value"]
             elif event.type in [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED]:
                 if event.type == pygame.JOYDEVICEADDED:
-                    print("Controller added:", event)
+                    logger.info(f"Controller connected: {event}")
                     c = pygame.joystick.Joystick(event.device_index)
                     c.init()
                     instance_id = c.get_instance_id()
@@ -93,7 +121,7 @@ def run(
                     )
                     controller_states[instance_id] = ControllerState()
                 else:
-                    print("Controller removed:", event)
+                    logger.info(f"Controller removed: {event}")
                     controllers.pop(instance_id)
                     controller_states.pop(instance_id)
 
@@ -106,14 +134,26 @@ def run(
                 # skip all other events. this way only relevant updates are processed below.
                 # this is relevant as e.g. thumbstick updates spam lots of updates
                 continue
-            check_combos(controller_states, defined_actions)
+            __check_for_mappings(controller_states, defined_actions)
 
-            if debug:
-                print(controller_states)
+            logger.debug(controller_states)
 
-        pygame.time.wait(250)
 
-    pygame.quit()
+def __check_for_mappings(
+    controller_states: Dict[int, ControllerState],
+    defined_actions: List[Mapping],
+):
+    """Checks if one of the current controller states matches a defined mapping.
+
+    Args:
+        controller_states (Dict[int, ControllerState]): Dict of all current controller states where the key is the instance-id.
+        defined_actions (List[Mapping]): List of defined mappings.
+    """
+    for instance_id, state in controller_states.items():
+        for action in defined_actions:
+            if action.controller_state.describe() == state.describe():
+                logger.info(f"Mapping detected: {action} on controller {instance_id}")
+                action.execute()
 
 
 def cli():
@@ -189,7 +229,7 @@ def cli():
                     d_pad = d_pad_mapper[input]
                 else:
                     raise Exception(
-                        f"key {input} is not a valid input. Valid options are {valid_inputs}"
+                        f"key {input} is not a valid input. Valid options are {VALID_KEYBOARD_KEYS}"
                     )
             states.append(ControllerState(buttons, d_pad))
 
@@ -227,7 +267,7 @@ def cli():
             )
             state_counter += 1
 
-    run(defined_actions=defined_actions, debug=debug)
+    start_observer(defined_actions=defined_actions, debug=debug)
 
 
 if __name__ == "__main__":
@@ -240,4 +280,4 @@ if __name__ == "__main__":
         )
     ]
 
-    run(defined_actions)
+    start_observer(defined_actions)
