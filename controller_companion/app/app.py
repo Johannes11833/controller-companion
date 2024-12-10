@@ -4,13 +4,14 @@ import os
 from pathlib import Path
 import threading
 import tkinter as tk
-from tkinter import (
-    Menu,
-)
+from tkinter import Menu, messagebox
+import webbrowser
+import requests
 import platform
 from tkinter import ttk
 import pystray
 from PIL import Image
+import controller_companion
 from controller_companion.mapping import Mapping
 from controller_companion.app import resources
 from controller_companion.app.popup_about import AboutScreen
@@ -92,6 +93,7 @@ class ControllerCompanion(tk.Tk):
         # Help Menu
         help_ = Menu(menu, tearoff=0)
         menu.add_cascade(label="Help", menu=help_)
+        help_.add_command(label="Check for Updates", command=self.check_for_updates)
         help_.add_command(label="About", command=lambda: AboutScreen(self))
 
         # ---------------------------------------------------------------------------- #
@@ -247,6 +249,28 @@ class ControllerCompanion(tk.Tk):
                 bat_file.unlink(missing_ok=True)
 
         self.save_settings()
+
+    def check_for_updates(self):
+        response = requests.get(
+            "https://api.github.com/repos/Johannes11833/controller-companion/releases/latest"
+        )
+        latest_version = response.json()["name"]
+        installed_version = f"v{controller_companion.VERSION}"
+
+        if latest_version == installed_version:
+            messagebox.showinfo(
+                "Up to date", "The latest version of Controller Companion is installed."
+            )
+        else:
+            print(f"update available: {installed_version} -> {latest_version}")
+            open_website = messagebox.askyesno(
+                f"Update available: {latest_version}",
+                "A new update is available for Controller Companion.\nGo to download page now?",
+            )
+            if open_website:
+                webbrowser.open_new_tab(
+                    "https://github.com/Johannes11833/controller-companion/releases/latest",
+                )
 
 
 def cli():
