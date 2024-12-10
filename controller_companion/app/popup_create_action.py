@@ -8,7 +8,7 @@ from tkinter import (
     ttk,
 )
 from tkinter import messagebox
-from controller_companion import logger
+from controller_companion.logs import logger
 
 from controller_companion.mapping import Mapping, ActionType
 from controller_companion.app import resources

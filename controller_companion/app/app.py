@@ -12,6 +12,7 @@ from tkinter import ttk
 import pystray
 from PIL import Image
 import controller_companion
+from controller_companion.logs import logger
 from controller_companion.mapping import Mapping
 from controller_companion.app import resources
 from controller_companion.app.popup_about import AboutScreen
@@ -256,7 +257,7 @@ class ControllerCompanion(tk.Tk):
             "https://api.github.com/repos/Johannes11833/controller-companion/releases/latest"
         )
         latest_version = response.json()["name"]
-        installed_version = f"v{controller_companion.VERSION}"
+        installed_version = controller_companion.VERSION
 
         if latest_version == installed_version:
             messagebox.showinfo(
@@ -265,7 +266,12 @@ class ControllerCompanion(tk.Tk):
                 parent=self,
             )
         else:
-            print(f"update available: {installed_version} -> {latest_version}")
+            url = (
+                "https://github.com/Johannes11833/controller-companion/releases/latest"
+            )
+            logger.info(
+                f"A new update is available: {installed_version} -> {latest_version}. URL: {url}"
+            )
             open_website = messagebox.askyesno(
                 f"Update available: {latest_version}",
                 f"A new update is available for Controller Companion:\ninstalled: Go to download page now?",
@@ -273,7 +279,7 @@ class ControllerCompanion(tk.Tk):
             )
             if open_website:
                 webbrowser.open_new_tab(
-                    "https://github.com/Johannes11833/controller-companion/releases/latest",
+                    url,
                 )
 
 

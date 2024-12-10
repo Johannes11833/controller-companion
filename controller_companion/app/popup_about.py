@@ -26,7 +26,7 @@ class AboutScreen(tk.Toplevel):
 
         tk.Label(
             frame2,
-            text=f"Controller Companion v{VERSION}",
+            text=f"Controller Companion {VERSION}",
             font=("Helvetica", 12, "bold"),
         ).pack(side=tk.TOP, anchor="w")
         tk.Label(frame2, text=f"Made by Johannes Gundlach").pack(

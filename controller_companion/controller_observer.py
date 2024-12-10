@@ -1,17 +1,19 @@
 import argparse
-import logging
 import os
 import threading
 import traceback
 from typing import Callable, Dict, List
-from rich import print
-from rich.table import Table
 
-from controller_companion import logger
+
+import controller_companion
+from controller_companion.logs import logger
+from controller_companion import logs
 
 # import pygame, hide welcome message
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes"
 import pygame
+from rich.table import Table
+from rich.console import Console
 
 
 from controller_companion.mapping import Mapping, ActionType
@@ -35,18 +37,31 @@ def start_observer(
 ):
 
     if debug:
-        logger.setLevel(logging.DEBUG)
-        print("Debug messages are enabled.")
+        logs.set_log_level(logs.DEBUG)
     else:
-        logger.setLevel(logging.INFO)
+        logs.set_log_level(logs.INFO)
 
-    table = Table(title="Defined Mappings")
-    table.add_column("Name", justify="left", style="cyan")
-    table.add_column("Shortcut", justify="left", style="magenta")
-    table.add_column("Action", justify="left", style="green")
-    for mapping in defined_actions:
-        table.add_row(mapping.name, mapping.controller_state.describe(), mapping.target)
-    print(table)
+    # ------------------- print the defined mappings in a table ------------------ #
+    if len(defined_actions) > 0:
+        table = Table(title="Defined Mappings")
+        table.add_column("Name", justify="left", style="blue", header_style="blue")
+        table.add_column(
+            "Shortcut", justify="left", style="magenta", header_style="magenta"
+        )
+        table.add_column("Action", justify="left", style="green", header_style="green")
+
+        for mapping in defined_actions:
+            table.add_row(
+                mapping.name,
+                mapping.controller_state.describe(),
+                mapping.target,
+            )
+        Console().log(table)
+    else:
+        logger.info("No mappings have been defined.")
+    # ---------------------------------------------------------------------------- #
+
+    logger.info("Listening to controller inputs.")
 
     try:
         __process_pygame_events(
@@ -65,8 +80,6 @@ def start_observer(
             controller_callback=controller_callback,
             restart_delay_ms=restart_delay_ms,
         )
-
-    pygame.time.wait(250)
 
     pygame.quit()
 
@@ -136,7 +149,8 @@ def __process_pygame_events(
                 continue
             __check_for_mappings(controller_states, defined_actions)
 
-            logger.debug(controller_states)
+            logger.debug(f"Controller state changed: {controller_states}")
+        pygame.time.wait(250)
 
 
 def __check_for_mappings(
@@ -185,7 +199,7 @@ def cli():
     parser.add_argument(
         "-i",
         "--input",
-        help="Input controller key combination.",
+        help="Input controller button combination.",
         nargs="+",
         type=str,
     )
@@ -202,10 +216,25 @@ def cli():
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "-v",
+        "--version",
+        help="Print the installed version of this library.",
+        action="store_true",
+        default=False,
+    )
     args = parser.parse_args()
     debug = args.debug
-    if args.valid_keys:
-        return f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Mapping.get_valid_keyboard_keys()}"
+    defined_actions = []
+
+    if args.version:
+        print("Installed version:", controller_companion.VERSION)
+        return
+    elif args.valid_keys:
+        print(
+            f"The following keys are valid inputs that can be used with the --shortcut argument:\n{Mapping.get_valid_keyboard_keys()}"
+        )
+        return
 
     if args.input is not None:
         if len(args.input) != (
@@ -216,8 +245,6 @@ def cli():
             )
 
         states = []
-        defined_actions = []
-
         for m in args.input:
             keys = m.split(",")
             buttons = []
@@ -271,13 +298,4 @@ def cli():
 
 
 if __name__ == "__main__":
-    defined_actions = [
-        Mapping(
-            name="close acrobat",
-            action_type=ActionType.TASK_KILL_BY_NAME,
-            target="Acrobat.exe",
-            controller_state=ControllerState([6], (-1, 0)),
-        )
-    ]
-
-    start_observer(defined_actions)
+    cli()
