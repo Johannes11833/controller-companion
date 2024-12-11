@@ -19,13 +19,15 @@ def install():
             "controller-companion",
             "--windowed",
             "--add-data",
-            "controller_companion/res:controller_companion/res",
+            "controller_companion/app/res:controller_companion/app/res",
             "--icon",
             str(resources.APP_ICON_ICO),
+            # remove question to override an existing output folder
+            "--noconfirm",
         ]
     )
 
     # zip the pyinstaller output as an artifact
     os_name = platform.system().replace("Darwin", "Mac").lower()
-    output_path = f"dist/controller-companion-v{VERSION}-{os_name}"
+    output_path = f"dist/controller-companion-{VERSION}-{os_name}"
     shutil.make_archive(output_path, "zip", "dist/controller-companion")

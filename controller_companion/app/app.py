@@ -4,13 +4,15 @@ import os
 from pathlib import Path
 import threading
 import tkinter as tk
-from tkinter import (
-    Menu,
-)
+from tkinter import Menu, messagebox
+import webbrowser
+import requests
 import platform
 from tkinter import ttk
 import pystray
 from PIL import Image
+import controller_companion
+from controller_companion.logs import logger
 from controller_companion.mapping import Mapping
 from controller_companion.app import resources
 from controller_companion.app.popup_about import AboutScreen
@@ -92,6 +94,7 @@ class ControllerCompanion(tk.Tk):
         # Help Menu
         help_ = Menu(menu, tearoff=0)
         menu.add_cascade(label="Help", menu=help_)
+        help_.add_command(label="Check for Updates", command=self.check_for_updates)
         help_.add_command(label="About", command=lambda: AboutScreen(self))
 
         # ---------------------------------------------------------------------------- #
@@ -124,9 +127,9 @@ class ControllerCompanion(tk.Tk):
         )
         listbox_controllers.pack(expand=True, fill=tk.BOTH)
 
-        # ---------------------------------------------------------------------------- #
+        # -------------------- start the joystick observer thread -------------------- #
         self.thread = threading.Thread(
-            target=controller_observer.run,
+            target=controller_observer.start_observer,
             daemon=True,
             args=[
                 self.defined_actions,
@@ -139,6 +142,7 @@ class ControllerCompanion(tk.Tk):
             },
         )
         self.thread.start()
+        # ---------------------------------------------------------------------------- #
 
         if launch_minimized:
             # use after to make initial controller connected callback work
@@ -247,6 +251,36 @@ class ControllerCompanion(tk.Tk):
                 bat_file.unlink(missing_ok=True)
 
         self.save_settings()
+
+    def check_for_updates(self):
+        response = requests.get(
+            "https://api.github.com/repos/Johannes11833/controller-companion/releases/latest"
+        )
+        latest_version = response.json()["name"]
+        installed_version = controller_companion.VERSION
+
+        if latest_version == installed_version:
+            messagebox.showinfo(
+                "Up to date",
+                "The latest version of Controller Companion is installed.",
+                parent=self,
+            )
+        else:
+            url = (
+                "https://github.com/Johannes11833/controller-companion/releases/latest"
+            )
+            logger.info(
+                f"A new update is available: {installed_version} -> {latest_version}. URL: {url}"
+            )
+            open_website = messagebox.askyesno(
+                f"Update available: {latest_version}",
+                f"A new update is available for Controller Companion:\ninstalled: Go to download page now?",
+                parent=self,
+            )
+            if open_website:
+                webbrowser.open_new_tab(
+                    url,
+                )
 
 
 def cli():
