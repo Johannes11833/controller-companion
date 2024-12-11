@@ -6,7 +6,7 @@
 #define MyAppURL "https://github.com/Johannes11833/controller-companion"
 #define MyAppExeName "controller-companion.exe"
 #define Path "dist\controller-companion"
-#define OutputName "controller-companion-" + AppVersion + "-windows-setup"
+#define OutputName "controller-companion-v" + AppVersion + "-windows-setup"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
