@@ -45,7 +45,7 @@ jobs:
 
     - name: Build executable
       run: |
-        poetry run build
+        poetry run build_controller_companion_executable
         ls -R ./dist/
 
     - name: Build Installer (Windows)

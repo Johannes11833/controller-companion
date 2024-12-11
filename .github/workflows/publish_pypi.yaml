@@ -21,10 +21,12 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - name: Set poetry version name (remove v prefix)
+      - name: Retrieve poetry version name (remove v prefix)
         run: echo "VERSION_POETRY=${VERSION#v}" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: "main"
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
@@ -43,4 +45,4 @@ jobs:
       - name: Commit updated version
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-            commit_message: "Set version to ${{env.VERSION_POETRY}}"
+            commit_message: "Bump version to ${{env.VERSION}} :rocket:"

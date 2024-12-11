@@ -19,7 +19,7 @@ def install():
             "controller-companion",
             "--windowed",
             "--add-data",
-            "controller_companion/res:controller_companion/res",
+            "controller_companion/app/res:controller_companion/app/res",
             "--icon",
             str(resources.APP_ICON_ICO),
             # remove question to override an existing output folder
