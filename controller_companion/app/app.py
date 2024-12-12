@@ -5,6 +5,7 @@ from pathlib import Path
 import threading
 import tkinter as tk
 from tkinter import Menu, messagebox
+from typing import List
 import webbrowser
 import requests
 import platform
@@ -12,6 +13,11 @@ from tkinter import ttk
 import pystray
 from PIL import Image
 import controller_companion
+from controller_companion.app.widgets.controller_listbox import (
+    PopupMenuListbox,
+    PopupMenuTreeview,
+)
+from controller_companion.controller import Controller
 from controller_companion.logs import logger
 from controller_companion.mapping import Mapping
 from controller_companion.app import resources
@@ -33,6 +39,8 @@ class ControllerCompanion(tk.Tk):
 
         # load settings
         self.settings = self.load_settings()
+
+        self.controllers: List[Controller] = []
 
         # --------------------------------- add menu --------------------------------- #
         menu = Menu(self)
@@ -100,7 +108,14 @@ class ControllerCompanion(tk.Tk):
         # ---------------------------------------------------------------------------- #
 
         tk.Label(self, text="Defined Mappings").pack(fill=tk.X)
-        self.treeview = ttk.Treeview(columns=("shortcut", "target"), height=7)
+        self.treeview = PopupMenuTreeview(
+            self,
+            columns=("shortcut", "target"),
+            height=7,
+            menu_actions={
+                "delete mapping(s)": lambda: self.delete_action(),
+            },
+        )
         self.treeview.heading("#0", text="Name")
         self.treeview.heading("shortcut", text="Shortcut")
         self.treeview.heading("target", text="Target")
@@ -120,12 +135,13 @@ class ControllerCompanion(tk.Tk):
 
         tk.Label(self, text="Connected Controllers").pack(fill=tk.X)
         self.var_connected_controllers = tk.Variable()
-        listbox_controllers = tk.Listbox(
+        self.listbox_controllers = PopupMenuListbox(
             self,
             listvariable=self.var_connected_controllers,
             selectmode=tk.EXTENDED,
+            menu_actions={"toggle on/off": self.toggle_controller},
         )
-        listbox_controllers.pack(expand=True, fill=tk.BOTH)
+        self.listbox_controllers.pack(expand=True, fill=tk.BOTH)
 
         # -------------------- start the joystick observer thread -------------------- #
         self.thread = threading.Thread(
@@ -136,9 +152,8 @@ class ControllerCompanion(tk.Tk):
             ],
             kwargs={
                 "debug": self.settings.get("debug", 0) == 1,
-                "controller_callback": lambda update: self.var_connected_controllers.set(
-                    [f"       {c.name}" for c in update]
-                ),
+                "controller_callback": self.update_controller_ui,
+                "disabled_controllers": self.settings["disabled_controllers"],
             },
         )
         self.thread.start()
@@ -173,7 +188,6 @@ class ControllerCompanion(tk.Tk):
     def quit_window(self, _=None):
         self.thread.do_run = False
         self.thread.join()
-        print("Thread ended")
         self.destroy()
 
     def show_window(self, icon):
@@ -207,11 +221,45 @@ class ControllerCompanion(tk.Tk):
         if len(selection) > 0:
             self.save_settings()
 
+    def update_controller_ui(self, controllers: List[Controller]):
+        self.controllers = controllers
+
+        controllers_str = []
+        for i, c in enumerate(controllers):
+            item = f"       Controller {i+1}: {c.name}"
+
+            if c.guid in self.settings["disabled_controllers"]:
+                item += "  [disabled]"
+
+            controllers_str.append(item)
+        self.var_connected_controllers.set(controllers_str)
+
+    def toggle_controller(self, _=None):
+        disabled_controllers = self.settings["disabled_controllers"]
+        selected_idcs = self.listbox_controllers.curselection()
+        selected_guids = set([self.controllers[i].guid for i in selected_idcs])
+
+        # selected controllers that are currently enabled/ disabled
+        selected_disabled_guids = set(disabled_controllers) & selected_guids
+        selected_enabled_guids = selected_guids - selected_disabled_guids
+
+        # toggle: disabled controllers ---> enabled and vice versa
+        new_disabled = list(
+            (set(disabled_controllers) | selected_enabled_guids)
+            - selected_disabled_guids
+        )
+        disabled_controllers.clear()
+        disabled_controllers.extend(new_disabled)
+
+        self.update_controller_ui(self.controllers)
+        self.save_settings()
+
     def load_settings(self):
         settings = {
             "minimize_on_exit": 1,
             "auto_start": 0,
             "debug": 0,
+            "disabled_controllers": [],
         }
 
         if self.settings_file.is_file():
@@ -234,7 +282,7 @@ class ControllerCompanion(tk.Tk):
         self.settings_file.parent.mkdir(exist_ok=True, parents=True)
         self.settings_file.write_text(json.dumps(self.settings, indent=4))
 
-        print(f"Saved settings to: {self.settings_file}")
+        logger.debug(f"Saved settings to: {self.settings_file}")
 
     def toggle_autostart(self):
         executable = resources.get_executable_path()
