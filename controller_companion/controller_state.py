@@ -48,7 +48,12 @@ class ControllerState:
 
     def describe(self) -> str:
         self.active_buttons.sort()
-        s = ",".join([button_mapper_inv[button] for button in self.active_buttons])
+        s = ",".join(
+            [
+                button_mapper_inv.get(button, f"button_{button}")
+                for button in self.active_buttons
+            ]
+        )
         d_pad_action_description = d_pad_mapper_inv.get(self.d_pad_state, None)
         s += (
             "," + d_pad_action_description

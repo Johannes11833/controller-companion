@@ -34,6 +34,7 @@ def start_observer(
     debug: bool = False,
     controller_callback: Callable[[List[Controller]], None] = None,
     restart_delay_ms: int = 1000,
+    disabled_controllers: List[str] = None,
 ):
 
     if debug:
@@ -61,12 +62,16 @@ def start_observer(
         logger.info("No mappings have been defined.")
     # ---------------------------------------------------------------------------- #
 
+    logger.debug(f"Disabled controllers: {disabled_controllers}")
     logger.info("Listening to controller inputs.")
 
+    pygame.init()
+
     try:
-        __process_pygame_events(
+        __subscribe_to_pygame_events(
             defined_actions=defined_actions,
             controller_callback=controller_callback,
+            disabled_controllers=disabled_controllers,
         )
     except Exception:
         logger.error(
@@ -84,23 +89,17 @@ def start_observer(
     pygame.quit()
 
 
-def __process_pygame_events(
+def __subscribe_to_pygame_events(
     defined_actions: Dict[str, Mapping] = {},
     controller_callback: Callable[[List[Controller]], None] = None,
+    disabled_controllers: List[str] = None,
 ):
-    pygame.init()
-    pygame.joystick.init()
-
     t = threading.current_thread()
 
-    # Initialize all detected joysticks
-    # Apparently with more than one controller connected this is required for all controllers to raise button/ d-pad events
-    # even though they will also raise an pygame.JOYDEVICEADDED event right from the start.
-    for i in range(pygame.joystick.get_count()):
-        pygame.joystick.Joystick(i).init()
-
-    controllers: Dict[int, pygame.joystick.JoystickType] = {}
-    controller_states: Dict[int, ControllerState] = {}
+    controllers: Dict[int, Controller] = {}
+    # we do not really need access the joysticks, but apparently we need to
+    # keep a reference to all connected joysticks for them to function.
+    pygame_joysticks: Dict[int, pygame.joystick.JoystickType] = {}
 
     while getattr(t, "do_run", True):
         for event in pygame.event.get():
@@ -109,34 +108,34 @@ def __process_pygame_events(
             if event.type in [pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP]:
                 button = event.dict["button"]
 
-                active_buttons = controller_states[instance_id].active_buttons
+                active_buttons = controllers[instance_id].state.active_buttons
                 if event.type == pygame.JOYBUTTONDOWN:
                     active_buttons.append(button)
                 else:
                     active_buttons.remove(button)
             elif event.type == pygame.JOYHATMOTION:
-                controller_states[instance_id].d_pad_state = event.dict["value"]
+                controllers[instance_id].state.d_pad_state = event.dict["value"]
             elif event.type in [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED]:
                 if event.type == pygame.JOYDEVICEADDED:
                     logger.info(f"Controller connected: {event}")
-                    c = pygame.joystick.Joystick(event.device_index)
-                    c.init()
-                    instance_id = c.get_instance_id()
-                    name = c.get_name()
+                    joy = pygame.joystick.Joystick(event.device_index)
+                    instance_id = joy.get_instance_id()
+                    pygame_joysticks[instance_id] = joy
+                    name = joy.get_name()
 
                     controllers[instance_id] = Controller(
-                        # on windows the controller name is wrapped inside "Controller()" when connected via USB
+                        # on windows the controller name is wrapped inside "Controller()" when connected via USB (XBOX)
                         name=name.removeprefix("Controller (").removesuffix(")"),
-                        guid=c.get_guid(),
-                        power_level=c.get_power_level(),
-                        instance_id=c.get_instance_id(),
-                        initialized=c.get_init(),
+                        guid=joy.get_guid(),
+                        power_level=joy.get_power_level(),
+                        instance_id=joy.get_instance_id(),
+                        initialized=joy.get_init(),
+                        state=ControllerState(),
                     )
-                    controller_states[instance_id] = ControllerState()
                 else:
                     logger.info(f"Controller removed: {event}")
                     controllers.pop(instance_id)
-                    controller_states.pop(instance_id)
+                    del pygame_joysticks[event.instance_id]
 
                 if controller_callback:
                     # call the callback through a thread so it does not keep the observer waiting (e.g. app in background)
@@ -147,27 +146,40 @@ def __process_pygame_events(
                 # skip all other events. this way only relevant updates are processed below.
                 # this is relevant as e.g. thumbstick updates spam lots of updates
                 continue
-            __check_for_mappings(controller_states, defined_actions)
+            __check_for_mappings(controllers, defined_actions, disabled_controllers)
 
-            logger.debug(f"Controller state changed: {controller_states}")
+            if event.type in [
+                pygame.JOYBUTTONDOWN,
+                pygame.JOYBUTTONUP,
+                pygame.JOYHATMOTION,
+            ]:
+                logger.debug(f"Controller state changed: {controllers}")
         pygame.time.wait(250)
 
 
 def __check_for_mappings(
-    controller_states: Dict[int, ControllerState],
+    controller_states: Dict[int, Controller],
     defined_actions: List[Mapping],
+    disabled_controllers: List[str] = None,
 ):
     """Checks if one of the current controller states matches a defined mapping.
 
     Args:
         controller_states (Dict[int, ControllerState]): Dict of all current controller states where the key is the instance-id.
         defined_actions (List[Mapping]): List of defined mappings.
+        disabled_controllers (List[str]): List of guids of the disabled controllers.
     """
-    for instance_id, state in controller_states.items():
+    if disabled_controllers is None:
+        disabled_controllers = []
+
+    for instance_id, controller in controller_states.items():
         for action in defined_actions:
-            if action.controller_state.describe() == state.describe():
-                logger.info(f"Mapping detected: {action} on controller {instance_id}")
-                action.execute()
+            if action.controller_state.describe() == controller.state.describe():
+                if controller.guid not in disabled_controllers:
+                    logger.info(
+                        f"Mapping detected: {action} on controller {instance_id}"
+                    )
+                    action.execute()
 
 
 def cli():
@@ -200,6 +212,12 @@ def cli():
         "-i",
         "--input",
         help="Input controller button combination.",
+        nargs="+",
+        type=str,
+    )
+    parser.add_argument(
+        "--disable",
+        help="GUIDs of the controllers to ignore.",
         nargs="+",
         type=str,
     )
@@ -294,7 +312,9 @@ def cli():
             )
             state_counter += 1
 
-    start_observer(defined_actions=defined_actions, debug=debug)
+    start_observer(
+        defined_actions=defined_actions, debug=debug, disabled_controllers=args.disable
+    )
 
 
 if __name__ == "__main__":
