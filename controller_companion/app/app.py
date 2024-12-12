@@ -144,19 +144,13 @@ class ControllerCompanion(tk.Tk):
         self.listbox_controllers.pack(expand=True, fill=tk.BOTH)
 
         # -------------------- start the joystick observer thread -------------------- #
-        self.thread = threading.Thread(
-            target=controller_observer.start_observer,
-            daemon=True,
-            args=[
-                self.defined_actions,
-            ],
-            kwargs={
-                "debug": self.settings.get("debug", 0) == 1,
-                "controller_callback": self.update_controller_ui,
-                "disabled_controllers": self.settings["disabled_controllers"],
-            },
+        self.observer = controller_observer.ControllerObserver()
+        self.observer.start_detached(
+            defined_actions=self.defined_actions,
+            debug=self.settings.get("debug", 0) == 1,
+            controller_callback=self.update_controller_ui,
+            disabled_controllers=self.settings["disabled_controllers"],
         )
-        self.thread.start()
         # ---------------------------------------------------------------------------- #
 
         if launch_minimized:
@@ -186,8 +180,7 @@ class ControllerCompanion(tk.Tk):
         self.quit_window()
 
     def quit_window(self, _=None):
-        self.thread.do_run = False
-        self.thread.join()
+        self.observer.stop()
         self.destroy()
 
     def show_window(self, icon):

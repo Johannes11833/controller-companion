@@ -2,7 +2,11 @@ from enum import Enum
 import subprocess
 from typing import Dict, List
 import pyautogui
-from controller_companion.controller_state import ControllerState
+from controller_companion.controller_state import (
+    ControllerState,
+    button_mapper,
+    d_pad_mapper,
+)
 
 
 class ActionType(Enum):
@@ -65,3 +69,6 @@ class Mapping:
 
     def get_valid_keyboard_keys() -> List[str]:
         return pyautogui.KEYBOARD_KEYS
+
+    def get_valid_controller_inputs() -> List[str]:
+        return list(button_mapper.keys()) + list(d_pad_mapper.keys())
