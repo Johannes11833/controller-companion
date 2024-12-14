@@ -6,7 +6,6 @@ from controller_companion.app.controller_layouts import (
     ControllerType,
 )
 from controller_companion.controller_state import (
-    ControllerState,
     button_mapper,
     d_pad_mapper,
 )

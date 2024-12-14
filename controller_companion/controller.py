@@ -33,7 +33,6 @@ class Controller:
         self.guid = guid
         self.power_level = power_level
         self.initialized = initialized
-        self.controller_type = controller_type
         self.layout = get_layout(controller_type)
         self.active_controller_inputs = (
             active_controller_inputs if active_controller_inputs else []
@@ -52,7 +51,7 @@ class Controller:
             controller_type = ControllerType.PLAYSTATION
         else:
             logger.warning(
-                f"Failed to find out the type of controller used so the {controller_type.name} layout will be used."
+                f'Failed to find out the type of controller for "{name}" so the {controller_type.name} layout will be used.'
             )
 
         return cls(
@@ -102,6 +101,7 @@ class Controller:
             buttons=self.__controller_state.active_buttons,
             d_pad=self.__controller_state.d_pad_state,
         )
+        self.active_controller_inputs.sort()
 
     def get_active_xbox_button_names(self):
         return self.layout.convert_button_names_to_xbox(

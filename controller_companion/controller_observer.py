@@ -206,7 +206,7 @@ class ControllerObserver:
 
         for instance_id, controller in controller_states.items():
             if (
-                controller.controller_type != ControllerType.XBOX
+                not isinstance(controller.layout, XboxControllerLayout)
                 and len(controller.active_controller_inputs) > 0
             ):
                 logger.debug(
