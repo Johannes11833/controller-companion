@@ -62,18 +62,3 @@ class ControllerState:
         )
 
         return f'<{s.removeprefix(",")}>'
-
-    def to_dict(self):
-        return {
-            "active_buttons": self.active_buttons,
-            "d_pad_state": self.d_pad_state,
-        }
-
-    @classmethod
-    def from_dict(cls, dict: Dict):
-
-        return cls(
-            active_buttons=dict["active_buttons"],
-            # tuples become lists during json conversion
-            d_pad_state=tuple(dict["d_pad_state"]),
-        )

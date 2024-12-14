@@ -13,6 +13,10 @@ from tkinter import ttk
 import pystray
 from PIL import Image
 import controller_companion
+from controller_companion.app.controller_layouts import (
+    ControllerType,
+    XboxControllerLayout,
+)
 from controller_companion.app.widgets.controller_listbox import (
     PopupMenuListbox,
     PopupMenuTreeview,
@@ -125,7 +129,7 @@ class ControllerCompanion(tk.Tk):
                 tk.END,
                 text=mapping.name,
                 values=(
-                    mapping.controller_state.describe(),
+                    mapping.get_shortcut_string(),
                     mapping.target,
                 ),
             )
@@ -197,7 +201,7 @@ class ControllerCompanion(tk.Tk):
                 tk.END,
                 text=result.name,
                 values=(
-                    result.controller_state.describe(),
+                    result.active_controller_buttons,
                     result.target,
                 ),
                 image=tk.PhotoImage(file=resources.APP_ICON_PNG),
