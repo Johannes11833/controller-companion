@@ -2,6 +2,9 @@ from enum import Enum
 import subprocess
 from typing import Dict, List
 import pyautogui
+from controller_companion.app.controller_layouts import (
+    ControllerType,
+)
 from controller_companion.controller_state import (
     ControllerState,
     button_mapper,
@@ -21,13 +24,15 @@ class Mapping:
         self,
         action_type: ActionType,
         target: str,
-        controller_state: ControllerState,
+        active_controller_buttons: List[str],
         name: str,
+        controller_type: ControllerType = ControllerType.XBOX,
     ):
         self.name = name
         self.action_type = action_type
         self.target = target
-        self.controller_state = controller_state
+        self.active_controller_buttons = active_controller_buttons
+        self.controller_type = controller_type
 
     def execute(self):
         if self.action_type == ActionType.TASK_KILL_BY_NAME:
@@ -46,15 +51,13 @@ class Mapping:
         else:
             subprocess.run(self.target)
 
-    def __str__(self):
-        return f"Controller{self.controller_state.describe()} --> Action<name: {self.name}, target: {self.target}, type: {self.action_type.name}>"
-
     def to_dict(self):
         return {
             "name": self.name,
             "action_type": self.action_type.name,
             "target": self.target,
-            "controller_state": self.controller_state.to_dict(),
+            "active_controller_buttons": self.active_controller_buttons,
+            "controller_type": self.controller_type.name,
         }
 
     @classmethod
@@ -64,7 +67,8 @@ class Mapping:
             name=dict["name"],
             target=dict["target"],
             action_type=ActionType[dict["action_type"]],
-            controller_state=ControllerState.from_dict(dict["controller_state"]),
+            active_controller_buttons=dict["active_controller_buttons"],
+            controller_type=ControllerType[dict["controller_type"]],
         )
 
     def get_valid_keyboard_keys() -> List[str]:
@@ -72,3 +76,10 @@ class Mapping:
 
     def get_valid_controller_inputs() -> List[str]:
         return list(button_mapper.keys()) + list(d_pad_mapper.keys())
+
+    def get_shortcut_string(self) -> str:
+        return "+".join(self.active_controller_buttons)
+
+    def __repr__(self):
+        content = ", ".join(f'{key}: "{value}"' for key, value in self.__dict__.items())
+        return f"Controller({content})"

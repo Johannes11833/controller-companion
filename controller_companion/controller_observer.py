@@ -2,10 +2,11 @@ import argparse
 import os
 import threading
 import traceback
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List
 
 
 import controller_companion
+from controller_companion.app.controller_layouts import XboxControllerLayout
 from controller_companion.logs import logger
 from controller_companion import logs
 
@@ -17,12 +18,7 @@ from rich.console import Console
 
 
 from controller_companion.mapping import Mapping, ActionType
-from controller_companion.controller import Controller
-from controller_companion.controller_state import (
-    ControllerState,
-    button_mapper,
-    d_pad_mapper,
-)
+from controller_companion.controller import Controller, ControllerType
 
 
 class ControllerObserver:
@@ -79,12 +75,19 @@ class ControllerObserver:
             table.add_column(
                 "Action", justify="left", style="green", header_style="green"
             )
+            table.add_column(
+                "Type",
+                justify="left",
+                style="bright_black",
+                header_style="bright_black",
+            )
 
             for mapping in defined_actions:
                 table.add_row(
                     mapping.name,
-                    mapping.controller_state.describe(),
+                    mapping.get_shortcut_string(),
                     mapping.target,
+                    mapping.controller_type.value,
                 )
             Console().log(table)
         else:
@@ -142,13 +145,14 @@ class ControllerObserver:
                 if event.type in [pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP]:
                     button = event.dict["button"]
 
-                    active_buttons = controllers[instance_id].state.active_buttons
-                    if event.type == pygame.JOYBUTTONDOWN:
-                        active_buttons.append(button)
-                    else:
-                        active_buttons.remove(button)
+                    controllers[instance_id].update_controller_state(
+                        button=button, add_button=event.type == pygame.JOYBUTTONDOWN
+                    )
                 elif event.type == pygame.JOYHATMOTION:
-                    controllers[instance_id].state.d_pad_state = event.dict["value"]
+                    d_pad_state = event.dict["value"]
+                    controllers[instance_id].update_controller_state(
+                        d_pad_state=d_pad_state
+                    )
                 elif event.type in [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED]:
                     if event.type == pygame.JOYDEVICEADDED:
                         joy = pygame.joystick.Joystick(event.device_index)
@@ -201,8 +205,19 @@ class ControllerObserver:
             disabled_controllers = []
 
         for instance_id, controller in controller_states.items():
+            if (
+                controller.controller_type != ControllerType.XBOX
+                and len(controller.active_controller_inputs) > 0
+            ):
+                logger.debug(
+                    f"{controller.name} emulated Xbox buttons: {controller.get_active_xbox_button_names()}"
+                )
+
             for action in defined_actions:
-                if action.controller_state.describe() == controller.state.describe():
+                if controller.matches(
+                    active_controller_inputs=action.active_controller_buttons,
+                    controller_type=action.controller_type,
+                ):
                     if controller.guid not in disabled_controllers:
                         logger.info(
                             f"Mapping detected: {action} on controller {instance_id}"
@@ -290,21 +305,19 @@ def cli():
                 "Length of --mapping needs to match with combined sum of commands provided to --task_kill, --console and --shortcut"
             )
 
-        states = []
-        for m in args.input:
-            keys = m.split(",")
-            buttons = []
-            d_pad = (0, 0)
-            for input in keys:
-                if input in button_mapper:
-                    buttons.append(button_mapper[input])
-                elif input in d_pad_mapper:
-                    d_pad = d_pad_mapper[input]
-                else:
+        active_buttons_list = []
+        controller_type = ControllerType.XBOX
+        layout = XboxControllerLayout()
+        button_mapper = layout.get_button_layout()
+        d_pad_mapper = layout.get_d_pad_layout()
+        for button_combination in args.input:
+            button_names = button_combination.split(",")
+            for name in button_names:
+                if name not in button_mapper and name not in d_pad_mapper:
                     raise Exception(
-                        f"key {input} is not a valid input. Valid options are {Mapping.get_valid_controller_inputs()}"
+                        f"key {name} is not a valid input. Valid options are {Mapping.get_valid_controller_inputs()}"
                     )
-            states.append(ControllerState(buttons, d_pad))
+            active_buttons_list.append(button_names)
 
         state_counter = 0
         for t in args.task_kill:
@@ -313,7 +326,8 @@ def cli():
                     ActionType.TASK_KILL_BY_NAME,
                     target=t,
                     name=f'Kill "{t}"',
-                    controller_state=states[state_counter],
+                    active_controller_buttons=active_buttons_list[state_counter],
+                    controller_type=controller_type,
                 )
             )
             state_counter += 1
@@ -324,7 +338,8 @@ def cli():
                     ActionType.CONSOLE_COMMAND,
                     target=c,
                     name=f'Run command "{c}"',
-                    controller_state=states[state_counter],
+                    active_controller_buttons=active_buttons_list[state_counter],
+                    controller_type=controller_type,
                 )
             )
             state_counter += 1
@@ -335,7 +350,8 @@ def cli():
                     ActionType.KEYBOARD_SHORTCUT,
                     target=s,
                     name=f'Shortcut "{s}"',
-                    controller_state=states[state_counter],
+                    active_controller_buttons=active_buttons_list[state_counter],
+                    controller_type=controller_type,
                 )
             )
             state_counter += 1

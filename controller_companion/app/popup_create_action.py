@@ -8,16 +8,17 @@ from tkinter import (
     ttk,
 )
 from tkinter import messagebox
+from controller_companion.app.controller_layouts import (
+    ControllerType,
+    XboxControllerLayout,
+    get_layout,
+)
 from controller_companion.logs import logger
 
 from controller_companion.mapping import Mapping, ActionType
 from controller_companion.app import resources
 from controller_companion.app.widgets.placeholder_entry import PlaceholderEntry
-from controller_companion.controller_state import (
-    ControllerState,
-    button_mapper,
-    d_pad_mapper,
-)
+from controller_companion.controller_state import ControllerState
 
 
 class CreateActionPopup(tk.Toplevel):
@@ -33,6 +34,12 @@ class CreateActionPopup(tk.Toplevel):
         self.var_action_type = StringVar()
         self.var_command = StringVar()
         self.result = None
+
+        # init controller layout
+        self.controller_type = ControllerType.XBOX
+        self.layout = get_layout(self.controller_type)
+        self.button_mapper = self.layout.get_button_layout()
+        self.d_pad_mapper = self.layout.get_d_pad_layout()
 
         frame_inputs = ttk.LabelFrame(
             master=self, height=50, text="Controller Shortcut"
@@ -58,7 +65,7 @@ class CreateActionPopup(tk.Toplevel):
         tk.Label(frame_buttons, text="Buttons", anchor="w").grid(
             row=0, column=0, sticky="W"
         )
-        for column, button in enumerate(button_mapper.keys()):
+        for column, button in enumerate(self.button_mapper.keys()):
             self.var_buttons[button] = IntVar()
             check = Checkbutton(
                 frame_buttons,
@@ -72,7 +79,7 @@ class CreateActionPopup(tk.Toplevel):
             row=0, column=0, sticky="W"
         )
         self.var_d_pad.set(-1)
-        for column, d_pad_state in enumerate(d_pad_mapper.keys()):
+        for column, d_pad_state in enumerate(self.d_pad_mapper.keys()):
             check = Radiobutton(
                 frame_d_pad,
                 text=d_pad_state,
@@ -136,22 +143,22 @@ class CreateActionPopup(tk.Toplevel):
 
     def on_save(self):
 
-        selected_buttons = []
+        active_controller_buttons = []
         target = self.var_command.get()
         name = self.entry_name.get()
 
         for btn, var in self.var_buttons.items():
             if var.get() == 1:
-                selected_buttons.append(button_mapper[btn])
+                active_controller_buttons.append(btn)
 
         selected_d_pad_index = self.var_d_pad.get()
-        if selected_d_pad_index == -1:
-            d_pad_action = (0, 0)
-        else:
-            d_pad_action = list(d_pad_mapper.values())[selected_d_pad_index]
+        if selected_d_pad_index != -1:
+            active_controller_buttons.append(
+                list(self.d_pad_mapper.keys())[selected_d_pad_index]
+            )
 
         error = None
-        if len(selected_buttons) == 0 and d_pad_action == (0, 0):
+        if len(self.var_buttons.items()) == 0 and selected_d_pad_index == -1:
             error = "No controller shortcut was selected!"
         elif target == "" or target == self.entry_target_command.placeholder:
             error = "No target command was specified!"
@@ -161,14 +168,12 @@ class CreateActionPopup(tk.Toplevel):
             messagebox.showerror("Error", error)
             return
 
-        state = ControllerState(
-            active_buttons=selected_buttons, d_pad_state=d_pad_action
-        )  # save the return value to an instance variable.
         self.result = Mapping(
             action_type=ActionType(self.var_action_type.get()),
             target=target,
-            controller_state=state,
+            active_controller_buttons=active_controller_buttons,
             name=name,
+            controller_type=self.controller_type,
         )
 
         self.destroy()
