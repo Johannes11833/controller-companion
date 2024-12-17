@@ -5,13 +5,14 @@ from PIL import Image, ImageTk
 
 from controller_companion import VERSION
 from controller_companion.app import resources
+from controller_companion.app.utils import set_window_icon
 
 
 class AboutScreen(tk.Toplevel):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.title("About")
-        self.iconbitmap(resources.APP_ICON_ICO)
+        set_window_icon(self)
         self.resizable(False, False)
 
         frame1 = tk.Frame(master=self, width=50, padx=10, pady=10)

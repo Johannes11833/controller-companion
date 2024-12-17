@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import subprocess
 from pathlib import Path
 import sys
 import tkinter as tk
@@ -12,6 +13,7 @@ import platform
 import pystray
 from PIL import Image
 import controller_companion
+from controller_companion.app.utils import set_window_icon
 from controller_companion.app.widgets.controller_listbox import (
     PopupMenuListbox,
     PopupMenuTreeview,
@@ -30,7 +32,7 @@ class ControllerCompanion(tk.Tk):
         super().__init__()
 
         self.title("Controller Companion")
-        self.iconbitmap(resources.APP_ICON_ICO)
+        set_window_icon(self)
         self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
         self.app_path = Path.home() / "Documents" / "Controller Companion"
@@ -272,6 +274,9 @@ class ControllerCompanion(tk.Tk):
         return settings
 
     def open_config(self):
+        if not self.settings_file.is_file():
+            self.save_settings()
+
         if sys.platform == "win32":
             os.startfile(self.settings_file)
         else:

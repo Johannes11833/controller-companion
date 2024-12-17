@@ -13,6 +13,7 @@ from controller_companion.app.controller_layouts import (
     XboxControllerLayout,
     get_layout,
 )
+from controller_companion.app.utils import set_window_icon
 from controller_companion.logs import logger
 
 from controller_companion.mapping import Mapping, ActionType
@@ -27,7 +28,7 @@ class CreateActionPopup(tk.Toplevel):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.iconbitmap(resources.APP_ICON_ICO)
+        set_window_icon(self)
 
         self.var_buttons = {}
         self.var_d_pad = IntVar()
