@@ -121,7 +121,7 @@ class PlayStationControllerLayout(ControllerLayout):
         }
 
     def get_d_pad_layout(self) -> Dict[str, Tuple[int, int]]:
-        # on the PS4 controller, the all buttons on the D-Pad are treated as normal buttons by pygame.
+        # on the PS4 controller, all buttons on the D-Pad are treated as normal buttons by pygame.
         return {}
 
     def button_aliases_to_xbox(self) -> Dict[str, str]:
