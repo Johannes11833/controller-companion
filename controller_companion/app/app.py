@@ -2,21 +2,16 @@ import argparse
 import json
 import os
 from pathlib import Path
-import threading
+import sys
 import tkinter as tk
 from tkinter import Menu, messagebox
 from typing import List
 import webbrowser
 import requests
 import platform
-from tkinter import ttk
 import pystray
 from PIL import Image
 import controller_companion
-from controller_companion.app.controller_layouts import (
-    ControllerType,
-    XboxControllerLayout,
-)
 from controller_companion.app.widgets.controller_listbox import (
     PopupMenuListbox,
     PopupMenuTreeview,
@@ -61,16 +56,15 @@ class ControllerCompanion(tk.Tk):
             command=self.delete_action,
             accelerator="Del",
         )
-        open_config = lambda: os.startfile(self.settings_file)
         filemenu_.add_command(
             label="Open config file",
-            command=open_config,
+            command=self.open_config,
             accelerator="Ctrl+C",
         )
         self.bind_all("<Delete>", self.delete_action)
         self.bind_all("<Control-n>", self.open_add_actions)
         self.bind_all("<Control-q>", self.quit_window)
-        self.bind_all("<Control-c>", lambda _: open_config())
+        self.bind_all("<Control-c>", lambda _: self.open_config())
         filemenu_.add_separator()
         filemenu_.add_command(
             label="Quit",
@@ -260,12 +254,29 @@ class ControllerCompanion(tk.Tk):
         }
 
         if self.settings_file.is_file():
-            settings.update(json.loads(self.settings_file.read_text()))
-            self.defined_actions = [Mapping.from_dict(d) for d in settings["actions"]]
+            try:
+                settings.update(json.loads(self.settings_file.read_text()))
+                self.defined_actions = [
+                    Mapping.from_dict(d) for d in settings["actions"]
+                ]
+            except Exception as e:
+                messagebox.showerror(
+                    "Config File Error",
+                    f"Failed to load the config file.\nError message: {str(e)}",
+                )
+                self.open_config()
+                self.quit_window()
         else:
             self.defined_actions = []
 
         return settings
+
+    def open_config(self):
+        if sys.platform == "win32":
+            os.startfile(self.settings_file)
+        else:
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.call([opener, self.settings_file])
 
     def save_settings(self):
         # update the settings dict
