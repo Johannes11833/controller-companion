@@ -335,7 +335,7 @@ class ControllerCompanion(tk.Tk):
             )
             open_website = messagebox.askyesno(
                 f"Update available: {latest_version}",
-                f"A new update is available for Controller Companion:\ninstalled: Go to download page now?",
+                f"A new update is available for Controller Companion. Go to download page now?",
                 parent=self,
             )
             if open_website:

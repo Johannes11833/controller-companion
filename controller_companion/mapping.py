@@ -5,6 +5,7 @@ import pyautogui
 from controller_companion.app.controller_layouts import (
     ControllerType,
 )
+from controller_companion.app.utils import OperatingSystem, get_os
 from controller_companion.controller_state import (
     button_mapper,
     d_pad_mapper,
@@ -35,7 +36,14 @@ class Mapping:
 
     def execute(self):
         if self.action_type == ActionType.TASK_KILL_BY_NAME:
-            subprocess.run(["taskkill", "/im", self.target])
+            os = get_os()
+            if os == OperatingSystem.WINDOWS:
+                subprocess.run(["taskkill", "/im", self.target])
+            elif os == OperatingSystem.LINUX:
+                subprocess.run(["pkill", self.target])
+            else:
+                subprocess.run(["killall", self.target])
+
         elif self.action_type == ActionType.KEYBOARD_SHORTCUT:
             keys = self.target.split("+")
 
