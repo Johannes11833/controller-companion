@@ -168,7 +168,7 @@ class ControllerCompanion(tk.Tk):
         self.withdraw()
         image = Image.open(resources.APP_ICON_ICO)
         menu = (
-            pystray.MenuItem("Show", self.show_window),
+            pystray.MenuItem("Show", self.show_window, default=True),
             pystray.MenuItem("Quit", self.quit_window_from_icon),
         )
         icon = pystray.Icon("name", image, "Controller Companion", menu)

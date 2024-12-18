@@ -24,6 +24,7 @@ def install():
             str(resources.APP_ICON_ICO),
             # remove question to override an existing output folder
             "--noconfirm",
+            "--hidden-import=PIL._tkinter_finder",
         ]
     )
 
