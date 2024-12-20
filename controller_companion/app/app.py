@@ -13,7 +13,7 @@ import platform
 import pystray
 from PIL import Image
 import controller_companion
-from controller_companion.app.utils import set_window_icon
+from controller_companion.app.utils import OperatingSystem, get_os, set_window_icon
 from controller_companion.app.widgets.controller_listbox import (
     PopupMenuListbox,
     PopupMenuTreeview,
@@ -29,9 +29,9 @@ import controller_companion.controller_observer as controller_observer
 
 class ControllerCompanion(tk.Tk):
     def __init__(self, launch_minimized=False):
-        super().__init__()
+        super().__init__(className=controller_companion.APP_NAME)
+        self.title(controller_companion.APP_NAME)
 
-        self.title("Controller Companion")
         set_window_icon(self)
         self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
@@ -89,7 +89,7 @@ class ControllerCompanion(tk.Tk):
             command=self.save_settings,
         )
 
-        if resources.is_frozen():
+        if resources.is_frozen() and get_os() == OperatingSystem.WINDOWS:
             # only display auto start option if this is an executable
             settings_.add_checkbutton(
                 label="Auto Start",
@@ -166,12 +166,21 @@ class ControllerCompanion(tk.Tk):
             return
 
         self.withdraw()
-        image = Image.open(resources.APP_ICON_ICO)
+        if get_os() == OperatingSystem.LINUX:
+            # on linux this will look very distorted on regulations >16x16
+            image = Image.open(resources.APP_ICON_PNG_TRAY_16)
+        else:
+            image = Image.open(resources.APP_ICON_PNG_TRAY_32)
         menu = (
             pystray.MenuItem("Show", self.show_window, default=True),
             pystray.MenuItem("Quit", self.quit_window_from_icon),
         )
-        icon = pystray.Icon("name", image, "Controller Companion", menu)
+        icon = pystray.Icon(
+            "name",
+            image,
+            controller_companion.APP_NAME,
+            menu,
+        )
         icon.run()
 
     def quit_window_from_icon(self, icon=None):
@@ -323,7 +332,7 @@ class ControllerCompanion(tk.Tk):
         if latest_version == installed_version:
             messagebox.showinfo(
                 "Up to date",
-                "The latest version of Controller Companion is installed.",
+                f"The latest version of {controller_companion.APP_NAME} is installed.",
                 parent=self,
             )
         else:
@@ -335,7 +344,7 @@ class ControllerCompanion(tk.Tk):
             )
             open_website = messagebox.askyesno(
                 f"Update available: {latest_version}",
-                f"A new update is available for Controller Companion. Go to download page now?",
+                f"A new update is available for {controller_companion.APP_NAME}. Go to download page now?",
                 parent=self,
             )
             if open_website:
@@ -346,7 +355,7 @@ class ControllerCompanion(tk.Tk):
 
 def cli():
     parser = argparse.ArgumentParser(
-        description="Lauch the Controller Companion UI App."
+        description=f"Lauch the {controller_companion.APP_NAME} UI App."
     )
     parser.add_argument(
         "-m",
