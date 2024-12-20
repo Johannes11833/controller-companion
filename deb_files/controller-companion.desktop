@@ -1,0 +1,21 @@
+[Desktop Entry]
+
+Name=Controller Companion
+GenericName=Controller Companion
+Icon=/usr/share/icons/controller-companion.png
+#Comment=Go to the Ubuntu official website.
+
+# Defines the command or script to be executed when starting the app.
+Exec=/opt/controller-companion/controller-companion
+# Specifies an alternative executable to check for the presence of the app.
+TryExec=/opt/controller-companion/controller-companion
+
+# Should this app run in terminal ?
+Terminal=false
+
+Type=Application
+Categories=Utility;
+Keywords=Controller;Companion;
+
+# version of the Desktop Entry Specification (not package's version)
+Version=1.0
