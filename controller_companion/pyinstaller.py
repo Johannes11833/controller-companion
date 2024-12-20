@@ -21,10 +21,11 @@ def install():
             "--add-data",
             "controller_companion/app/res:controller_companion/app/res",
             "--icon",
-            str(resources.APP_ICON_ICO),
+            str(resources.APP_ICON_PNG),
             # remove question to override an existing output folder
             "--noconfirm",
             "--hidden-import=PIL._tkinter_finder",
+            "--clean",
         ]
     )
 

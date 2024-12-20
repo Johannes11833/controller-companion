@@ -226,7 +226,9 @@ class ControllerObserver:
 
 
 def cli():
-    parser = argparse.ArgumentParser(description="Controller Companion.")
+    parser = argparse.ArgumentParser(
+        description=controller_companion.APP_NAME,
+    )
     parser.add_argument(
         "-t",
         "--task_kill",

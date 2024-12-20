@@ -30,5 +30,10 @@ def get_executable_path() -> Path:
     return Path(sys.executable)
 
 
-APP_ICON_ICO = __get_resource_path("controller_companion/app/res/app.ico")
 APP_ICON_PNG = __get_resource_path("controller_companion/app/res/app.png")
+APP_ICON_PNG_TRAY_32 = __get_resource_path(
+    "controller_companion/app/res/tray_icon_32.png"
+)
+APP_ICON_PNG_TRAY_16 = __get_resource_path(
+    "controller_companion/app/res/tray_icon_16.png"
+)

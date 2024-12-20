@@ -3,7 +3,7 @@ from tkinter import ttk
 import webbrowser
 from PIL import Image, ImageTk
 
-from controller_companion import VERSION
+import controller_companion
 from controller_companion.app import resources
 from controller_companion.app.utils import set_window_icon
 
@@ -21,13 +21,17 @@ class AboutScreen(tk.Toplevel):
         frame2.pack(fill=tk.Y, side=tk.LEFT)
 
         # Display it within a label.
-        image = ImageTk.PhotoImage(Image.open(resources.APP_ICON_PNG))
+        image = ImageTk.PhotoImage(
+            Image.open(resources.APP_ICON_PNG).resize(
+                (50, 50),
+            )
+        )
         label = ttk.Label(frame1, image=image, width=50)
         label.pack(side=tk.LEFT)
 
         tk.Label(
             frame2,
-            text=f"Controller Companion {VERSION}",
+            text=f"{controller_companion.APP_NAME} {controller_companion.VERSION}",
             font=("Helvetica", 12, "bold"),
         ).pack(side=tk.TOP, anchor="w")
         tk.Label(frame2, text=f"Made by Johannes Gundlach").pack(

@@ -1,0 +1,7 @@
+Package: controller-companion
+Architecture: amd64
+Essential: no
+Priority: optional
+Maintainer: Johannes Gundlach
+Description: Python app for assigning shortcut actions to game controllers.
+Homepage: https://github.com/Johannes11833/controller-companion
