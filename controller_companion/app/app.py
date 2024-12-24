@@ -166,7 +166,7 @@ class ControllerCompanion(tk.Tk):
 
         self.withdraw()
         if get_os() == OperatingSystem.LINUX:
-            # on linux this will look very distorted on regulations >16x16
+            # on linux this will look very distorted on resolutions >16x16
             image = Image.open(resources.APP_ICON_PNG_TRAY_16)
         else:
             image = Image.open(resources.APP_ICON_PNG_TRAY_32)

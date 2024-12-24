@@ -377,7 +377,7 @@ def cli():
     custom_config = args.custom_config
     use_config = args.config
     if custom_config is not None or use_config:
-        path = controller_companion.CONFIG_PATH if use_config else custom_config
+        path = custom_config if custom_config else controller_companion.CONFIG_PATH
         settings = json.loads(Path(path).read_text())
         defined_actions = [Mapping.from_dict(d) for d in settings.get("actions", [])]
     # ---------------------------------------------------------------------------- #
