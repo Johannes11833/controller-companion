@@ -352,7 +352,12 @@ class ControllerCompanion(tk.Tk):
                 )
 
 
-def cli():
+def launch_app(minimized: bool = False):
+    app = ControllerCompanion(launch_minimized=minimized)
+    app.mainloop()
+
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=f"Lauch the {controller_companion.APP_NAME} UI App."
     )
@@ -365,9 +370,4 @@ def cli():
     )
     args = parser.parse_args()
 
-    app = ControllerCompanion(launch_minimized=args.minimized)
-    app.mainloop()
-
-
-if __name__ == "__main__":
-    cli()
+    launch_app(minimized=args.minimized)
