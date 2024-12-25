@@ -8,7 +8,10 @@ from typing import Callable, Dict, List
 
 
 import controller_companion
-from controller_companion.app.controller_layouts import XboxControllerLayout
+from controller_companion.app.controller_layouts import (
+    ControllerType,
+    XboxControllerLayout,
+)
 from controller_companion.logs import logger
 from controller_companion import logs
 
@@ -19,8 +22,8 @@ from rich.table import Table
 from rich.console import Console
 
 
-from controller_companion.mapping import Mapping, ActionType
-from controller_companion.controller import Controller, ControllerType
+from controller_companion.mapping import ActionType, Mapping
+from controller_companion.controller import Controller
 
 
 class ControllerObserver:
@@ -388,4 +391,4 @@ def cli():
 
 
 if __name__ == "__main__":
-    cli()
+    ControllerObserver().start(defined_actions=[])
