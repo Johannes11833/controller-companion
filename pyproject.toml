@@ -28,3 +28,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 controller_companion = "controller_companion.launch:cli"
+build_controller_companion_exe = "pyinstaller:install"

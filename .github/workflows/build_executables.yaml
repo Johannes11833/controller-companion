@@ -45,7 +45,7 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller './controller-companion.spec' --noconfirm 
+        poetry run build_controller_companion_exe
         ls -R ./dist/
 
     - name: Build Installer (Windows)
