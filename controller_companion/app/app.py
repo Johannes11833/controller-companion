@@ -35,8 +35,7 @@ class ControllerCompanion(tk.Tk):
         set_window_icon(self)
         self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
-        self.app_path = Path.home() / "Documents" / "Controller Companion"
-        self.settings_file = self.app_path / "settings.json"
+        self.settings_file = controller_companion.CONFIG_PATH
 
         # load settings
         self.settings = self.load_settings()
@@ -167,7 +166,7 @@ class ControllerCompanion(tk.Tk):
 
         self.withdraw()
         if get_os() == OperatingSystem.LINUX:
-            # on linux this will look very distorted on regulations >16x16
+            # on linux this will look very distorted on resolutions >16x16
             image = Image.open(resources.APP_ICON_PNG_TRAY_16)
         else:
             image = Image.open(resources.APP_ICON_PNG_TRAY_32)

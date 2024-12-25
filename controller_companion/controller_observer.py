@@ -1,5 +1,7 @@
 import argparse
+import json
 import os
+from pathlib import Path
 import threading
 import traceback
 from typing import Callable, Dict, List
@@ -286,6 +288,19 @@ def cli():
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--config",
+        help="Use the config file of the app to setup the mappings.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--custom-config",
+        help="Use a custom config file to setup the mappings (using the same format as the App config).",
+        type=str,
+        default=None,
+    )
+
     args = parser.parse_args()
     debug = args.debug
     defined_actions = []
@@ -357,6 +372,15 @@ def cli():
                 )
             )
             state_counter += 1
+
+    # ------------------------------ config support ------------------------------ #
+    custom_config = args.custom_config
+    use_config = args.config
+    if custom_config is not None or use_config:
+        path = custom_config if custom_config else controller_companion.CONFIG_PATH
+        settings = json.loads(Path(path).read_text())
+        defined_actions = [Mapping.from_dict(d) for d in settings.get("actions", [])]
+    # ---------------------------------------------------------------------------- #
 
     ControllerObserver().start(
         defined_actions=defined_actions, debug=debug, disabled_controllers=args.disable
