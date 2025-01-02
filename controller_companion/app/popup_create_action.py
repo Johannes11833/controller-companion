@@ -7,31 +7,30 @@ from tkinter import (
     StringVar,
     ttk,
 )
+from PIL import Image, ImageTk
 from tkinter import messagebox
+from controller_companion.app import resources
 from controller_companion.app.controller_layouts import (
     ControllerType,
-    XboxControllerLayout,
     get_layout,
 )
 from controller_companion.app.utils import set_window_icon
 from controller_companion.logs import logger
 
 from controller_companion.mapping import Mapping, ActionType
-from controller_companion.app import resources
 from controller_companion.app.widgets.placeholder_entry import PlaceholderEntry
-from controller_companion.controller_state import ControllerState
 
 
 class CreateActionPopup(tk.Toplevel):
-    """modal window requires a master"""
-
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
         set_window_icon(self)
+        self.geometry("700x600")
 
         self.var_buttons = {}
         self.var_d_pad = IntVar()
+        self.var_layout = StringVar()
         self.var_action_type = StringVar()
         self.var_command = StringVar()
         self.result = None
@@ -47,11 +46,11 @@ class CreateActionPopup(tk.Toplevel):
         )
         frame_inputs.pack(fill=tk.X, side=tk.TOP, expand=True, padx=10, pady=(10, 5))
 
-        frame_buttons = tk.Frame(master=frame_inputs, height=50, padx=5)
-        frame_buttons.pack(fill=tk.X, side=tk.TOP, expand=True)
+        frame_inputs_top = tk.Frame(master=frame_inputs, height=50, padx=5)
+        frame_inputs_top.pack(fill=tk.Y, side=tk.LEFT, expand=True)
 
-        frame_d_pad = tk.Frame(master=frame_inputs, height=50, padx=5)
-        frame_d_pad.pack(fill=tk.X, side=tk.TOP, expand=True)
+        self.frame_buttons = tk.Frame(master=frame_inputs, padx=5)
+        self.frame_buttons.pack(fill=tk.Y, side=tk.LEFT, expand=True)
 
         frame_action = ttk.LabelFrame(
             master=self, height=50, text="Action", padding=(0, 5, 5, 5)
@@ -63,32 +62,22 @@ class CreateActionPopup(tk.Toplevel):
         )
         frame_save.pack(fill=tk.X, side=tk.TOP, expand=True, padx=10, pady=(5, 10))
 
-        tk.Label(frame_buttons, text="Buttons", anchor="w").grid(
-            row=0, column=0, sticky="W"
+        # controller type selection
+        tk.Label(
+            frame_inputs_top,
+            text="Layout:",
+        ).grid(row=0, column=0, sticky="W")
+        self.label_layout = ttk.Label(frame_inputs_top, width=50)
+        self.label_layout.grid(row=1, column=0)
+        self.combobox_layout = ttk.Combobox(
+            frame_inputs_top,
+            values=[e.value + " Controller" for e in ControllerType],
+            state="readonly",
         )
-        for column, button in enumerate(self.button_mapper.keys()):
-            self.var_buttons[button] = IntVar()
-            check = Checkbutton(
-                frame_buttons,
-                text=button,
-                variable=self.var_buttons[button],
-                anchor="w",
-            )
-            check.grid(row=1, column=column)
-
-        tk.Label(frame_d_pad, text="D-Pad", anchor="w").grid(
-            row=0, column=0, sticky="W"
-        )
-        self.var_d_pad.set(-1)
-        for column, d_pad_state in enumerate(self.d_pad_mapper.keys()):
-            check = Radiobutton(
-                frame_d_pad,
-                text=d_pad_state,
-                variable=self.var_d_pad,
-                value=column,
-                anchor="w",
-            )
-            check.grid(row=1, column=column)
+        self.combobox_layout.bind("<<ComboboxSelected>>", self.update_layout)
+        self.combobox_layout.grid(row=2, column=0)
+        self.combobox_layout.current(0)
+        self.update_layout()
 
         tk.Label(
             frame_action,
@@ -244,3 +233,66 @@ class CreateActionPopup(tk.Toplevel):
 
                 self.entry_target_command.set_text("+".join(sorted_keys))
                 return "break"
+
+    def update_layout(self, *args):
+        width = 400
+
+        # update layout
+        idx = self.combobox_layout.current()
+        self.controller_type = list(ControllerType)[idx]
+        self.layout = get_layout(self.controller_type)
+        self.button_mapper = self.layout.get_button_layout()
+        self.d_pad_mapper = self.layout.get_d_pad_layout()
+
+        if self.controller_type == ControllerType.XBOX:
+            path = resources.XBOX_CONTROLLER_LAYOUT
+        else:
+            path = resources.PLAYSTATION_CONTROLLER_LAYOUT
+
+        image = Image.open(path)
+        image = image.resize(
+            (width, int(image.height * width / image.width)),
+        ).convert(mode="RGBA")
+        image = ImageTk.PhotoImage(image)
+        self.label_layout.configure(image=image)
+        self.label_layout.image = image
+
+        for widget in self.frame_buttons.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.frame_buttons, text="Buttons:", anchor="w").grid(
+            row=0, column=0, sticky="W"
+        )
+        counter = 0
+        buttons_per_column = 8
+        self.gamepad_input_icons = self.layout.get_button_icons(resize=(32, 32))
+        for button in self.button_mapper.keys():
+            self.var_buttons[button] = IntVar()
+            check = Checkbutton(
+                self.frame_buttons,
+                text=button,
+                variable=self.var_buttons[button],
+                anchor="w",
+                image=self.gamepad_input_icons[button],
+            )
+            check.grid(
+                row=1 + counter % buttons_per_column,
+                column=counter // buttons_per_column,
+            )
+            counter += 1
+
+        self.var_d_pad.set(-1)
+        for idx, d_pad_state in enumerate(self.d_pad_mapper.keys()):
+            check = Radiobutton(
+                self.frame_buttons,
+                text=d_pad_state,
+                variable=self.var_d_pad,
+                value=idx,
+                anchor="w",
+                image=self.gamepad_input_icons[d_pad_state],
+            )
+            check.grid(
+                row=1 + counter % buttons_per_column,
+                column=counter // buttons_per_column,
+            )
+            counter += 1

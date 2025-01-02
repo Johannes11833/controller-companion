@@ -53,3 +53,6 @@ With [poetry](https://python-poetry.org/) installed, run the following command t
 ```console 
 poetry run build_controller_companion_executable
 ```
+
+## Credits
+- Gamepad button icons: https://80.lv/articles/free-button-icons-for-unreal-engine-and-unity
