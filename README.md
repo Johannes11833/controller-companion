@@ -14,7 +14,7 @@ The following actions are supported:
 - Supports a wide variety of controllers (those supported by [pygame](https://www.pygame.org))
 - Runs on Windows, Linux and Mac
 - Auto start on system boot (windows only for now)
-- GUI app can be compiled as a standalone executable (using [PyInstaller](https://pyinstaller.org)
+- GUI app can be compiled as a standalone executable (using [PyInstaller](https://pyinstaller.org))
 
 ## Screenshots
 ### Main Window
@@ -53,3 +53,6 @@ With [poetry](https://python-poetry.org/) installed, run the following command t
 ```console 
 poetry run build_controller_companion_executable
 ```
+
+## Credits
+- Gamepad button icons: https://80.lv/articles/free-button-icons-for-unreal-engine-and-unity

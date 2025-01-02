@@ -7,11 +7,6 @@ from pathlib import Path
 import controller_companion
 from controller_companion.app.app import launch_app
 from controller_companion.app.controller_layouts import XboxControllerLayout
-
-# import pygame, hide welcome message
-os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes"
-
-
 from controller_companion.controller_observer import ControllerObserver
 from controller_companion.mapping import Mapping, ActionType
 from controller_companion.controller import ControllerType

@@ -37,3 +37,13 @@ APP_ICON_PNG_TRAY_32 = __get_resource_path(
 APP_ICON_PNG_TRAY_16 = __get_resource_path(
     "controller_companion/app/res/tray_icon_16.png"
 )
+XBOX_CONTROLLER_LAYOUT = __get_resource_path(
+    "controller_companion/app/res/xbox_controller_layout.png"
+)
+PLAYSTATION_CONTROLLER_LAYOUT = __get_resource_path(
+    "controller_companion/app/res/playstation_controller_layout.png"
+)
+XBOX_BUTTONS_DIR = __get_resource_path("controller_companion/app/res/xbox")
+PLAYSTATION_BUTTONS_DIR = __get_resource_path(
+    "controller_companion/app/res/playstation"
+)

@@ -1,12 +1,16 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, List, Tuple
+import itertools
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+from PIL import Image, ImageTk
+
+from controller_companion.app import resources
 
 
 class ControllerType(Enum):
     XBOX = "Xbox"
     PLAYSTATION = "PlayStation"
-    CUSTOM = "Custom"
 
     def __str__(self):
         return self.name
@@ -16,6 +20,10 @@ class ControllerType(Enum):
 
 
 class ControllerLayout(ABC):
+    @abstractmethod
+    def get_icon_dir(self) -> str:
+        pass
+
     @abstractmethod
     def get_button_layout(self) -> Dict[str, int]:
         pass
@@ -59,10 +67,35 @@ class ControllerLayout(ABC):
             self.get_d_pad_layout().keys()
         )
 
+    def get_button_icons(
+        self,
+        resize: Optional[Tuple[int, int]] = None,
+    ) -> List[ImageTk.PhotoImage]:
+        icons = {}
+        dir = self.get_icon_dir()
+        for button in list(self.get_button_layout().keys()) + list(
+            self.get_d_pad_layout().keys()
+        ):
+            path = dir / f"{button.replace(' ','_')}.png"
+            if path.is_file():
+                image = Image.open(path)
+                if resize:
+                    image = image.resize(resize)
+                image = ImageTk.PhotoImage(image)
+            else:
+                image = None
+
+            icons[button] = image
+
+        return icons
+
 
 class XboxControllerLayout(ControllerLayout):
     def __repr__(self):
         return "XboxControllerLayout"
+
+    def get_icon_dir(self) -> str:
+        return resources.XBOX_BUTTONS_DIR
 
     def get_button_layout(self) -> Dict[str, int]:
         return {
@@ -77,6 +110,7 @@ class XboxControllerLayout(ControllerLayout):
             "L-Stick": 8,
             "R-Stick": 9,
             "X-Box": 10,
+            "Share": 11,
         }
 
     def get_d_pad_layout(self) -> Dict[str, Tuple[int, int]]:
@@ -85,10 +119,10 @@ class XboxControllerLayout(ControllerLayout):
             "Right": (1, 0),
             "Up": (0, 1),
             "Down": (0, -1),
-            "Left-Down": (-1, -1),
-            "Left-Up": (-1, 1),
-            "Right-Up": (1, 1),
-            "Right-Down": (1, -1),
+            #   "Left-Down": (-1, -1),
+            #  "Left-Up": (-1, 1),
+            # "Right-Up": (1, 1),
+            # "Right-Down": (1, -1),
         }
 
     def button_aliases_to_xbox(self) -> Dict[str, str]:
@@ -100,19 +134,22 @@ class PlayStationControllerLayout(ControllerLayout):
     def __repr__(self):
         return "PlayStationControllerLayout"
 
+    def get_icon_dir(self) -> str:
+        return resources.PLAYSTATION_BUTTONS_DIR
+
     def get_button_layout(self) -> Dict[str, int]:
         return {
-            "X": 0,
-            "O": 1,
-            "□": 2,
-            "△": 3,
+            "Cross": 0,
+            "Circle": 1,
+            "Square": 2,
+            "Triangle": 3,
             "Share": 4,
             "PS": 5,
             "Options": 6,
             "L-Stick": 7,
             "R-Stick": 8,
             "L1": 9,
-            "L2": 10,
+            "R1": 10,
             "Up": 11,
             "Down": 12,
             "Left": 13,
@@ -126,10 +163,10 @@ class PlayStationControllerLayout(ControllerLayout):
 
     def button_aliases_to_xbox(self) -> Dict[str, str]:
         return {
-            "X": "A",
-            "O": "B",
-            "□": "X",
-            "△": "Y",
+            "Cross": "A",
+            "Circle": "B",
+            "Square": "X",
+            "Triangle": "Y",
             "Share": "Back",
             "PS": "X-Box",
             "Options": "Start",
