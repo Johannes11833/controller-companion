@@ -1,15 +1,10 @@
-import argparse
-import json
 import os
-from pathlib import Path
 import threading
 import traceback
 from typing import Callable, Dict, List
 
 
-import controller_companion
 from controller_companion.app.controller_layouts import (
-    ControllerType,
     XboxControllerLayout,
 )
 from controller_companion.logs import logger
@@ -22,7 +17,7 @@ from rich.table import Table
 from rich.console import Console
 
 
-from controller_companion.mapping import ActionType, Mapping
+from controller_companion.mapping import Mapping
 from controller_companion.controller import Controller
 
 

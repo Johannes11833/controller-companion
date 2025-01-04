@@ -6,14 +6,21 @@ from pathlib import Path
 import sys
 import tkinter as tk
 from tkinter import Menu, messagebox
+from tkinter import ttk
 from typing import List
 import webbrowser
 import requests
 import platform
 import pystray
-from PIL import Image
+from PIL import Image, ImageTk
 import controller_companion
-from controller_companion.app.utils import OperatingSystem, get_os, set_window_icon
+from controller_companion.app.controller_layouts import ControllerType, get_layout
+from controller_companion.app.utils import (
+    OperatingSystem,
+    combine_images_horizontally,
+    get_os,
+    set_window_icon,
+)
 from controller_companion.app.widgets.controller_listbox import (
     PopupMenuListbox,
     PopupMenuTreeview,
@@ -33,7 +40,6 @@ class ControllerCompanion(tk.Tk):
         self.title(controller_companion.APP_NAME)
 
         set_window_icon(self)
-        self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
         self.settings_file = controller_companion.CONFIG_PATH
 
@@ -105,30 +111,23 @@ class ControllerCompanion(tk.Tk):
         help_.add_command(label="About", command=lambda: AboutScreen(self))
 
         # ---------------------------------------------------------------------------- #
-
+        self.rowheight = 30
         tk.Label(self, text="Defined Mappings").pack(fill=tk.X)
+        s = ttk.Style()
+        s.configure("Treeview", rowheight=self.rowheight)
         self.treeview = PopupMenuTreeview(
             self,
-            columns=("shortcut", "target"),
+            columns=("name", "target"),
             height=7,
             menu_actions={
                 "delete mapping(s)": lambda: self.delete_action(),
             },
         )
-        self.treeview.heading("#0", text="Name")
-        self.treeview.heading("shortcut", text="Shortcut")
-        self.treeview.heading("target", text="Target")
-        for mapping in self.defined_actions:
-            self.treeview.insert(
-                "",
-                tk.END,
-                text=mapping.name,
-                values=(
-                    mapping.get_shortcut_string(),
-                    mapping.target,
-                ),
-            )
         self.treeview.pack(expand=True, fill=tk.BOTH)
+        self.treeview.heading("#0", text="Shortcut")
+        self.treeview.heading("name", text="Name")
+        self.treeview.heading("target", text="Target")
+        self.update_mappings_ui()
 
         # --------------------------- connected controllers -------------------------- #
 
@@ -157,6 +156,36 @@ class ControllerCompanion(tk.Tk):
             # otherwise, we would get a RuntimeError: main thread is not in main loop
             # when executing the controller_callback above.
             self.after(100, self.minimize_to_tray, [True])
+
+    def update_mappings_ui(self):
+        self.treeview.delete(*self.treeview.get_children())
+        icon_size = (self.rowheight - 5, self.rowheight - 5)
+        self.mapping_treeview_icons = []
+        layout_icons = {
+            controller: get_layout(controller).get_button_icons(icon_size=icon_size)
+            for controller in ControllerType
+        }
+        for mapping in self.defined_actions:
+            plus_icon = Image.open(resources.PLUS_ICON).resize((15, 15))
+            icons = []
+            for btn in mapping.active_controller_buttons:
+                icons.append(layout_icons[mapping.controller_type][btn])
+                icons.append(plus_icon)
+            icons.pop()
+            combined_icons = ImageTk.PhotoImage(
+                combine_images_horizontally(images=icons, height=self.rowheight)
+            )
+            self.treeview.insert(
+                "",
+                tk.END,
+                text="",
+                values=(
+                    mapping.name,
+                    mapping.target,
+                ),
+                image=combined_icons,
+            )
+            self.mapping_treeview_icons.append(combined_icons)
 
     def minimize_to_tray(self, is_launch: bool = False):
         if self.var_settings_minimize_on_close.get() == 0 and not is_launch:
@@ -200,16 +229,7 @@ class ControllerCompanion(tk.Tk):
         result = p.result
         if result is not None:
             self.defined_actions.append(result)
-            self.treeview.insert(
-                "",
-                tk.END,
-                text=result.name,
-                values=(
-                    result.active_controller_buttons,
-                    result.target,
-                ),
-                image=tk.PhotoImage(file=resources.APP_ICON_PNG),
-            )
+            self.update_mappings_ui()
             self.save_settings()
 
     def delete_action(self, _=None):

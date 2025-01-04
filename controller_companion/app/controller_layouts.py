@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-import itertools
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageTk
 
@@ -69,8 +67,8 @@ class ControllerLayout(ABC):
 
     def get_button_icons(
         self,
-        resize: Optional[Tuple[int, int]] = None,
-    ) -> List[ImageTk.PhotoImage]:
+        icon_size: Optional[Tuple[int, int]] = None,
+    ) -> Dict[str, ImageTk.PhotoImage]:
         icons = {}
         dir = self.get_icon_dir()
         for button in list(self.get_button_layout().keys()) + list(
@@ -79,9 +77,8 @@ class ControllerLayout(ABC):
             path = dir / f"{button.replace(' ','_')}.png"
             if path.is_file():
                 image = Image.open(path)
-                if resize:
-                    image = image.resize(resize)
-                image = ImageTk.PhotoImage(image)
+                if icon_size:
+                    image = image.resize(icon_size)
             else:
                 image = None
 
@@ -119,9 +116,9 @@ class XboxControllerLayout(ControllerLayout):
             "Right": (1, 0),
             "Up": (0, 1),
             "Down": (0, -1),
-            #   "Left-Down": (-1, -1),
-            #  "Left-Up": (-1, 1),
-            # "Right-Up": (1, 1),
+            # "Left-Down": (-1, -1),
+            # "Left-Up": (-1, 1),
+            # "Right-Up": (1, 1),g
             # "Right-Down": (1, -1),
         }
 
@@ -171,7 +168,7 @@ class PlayStationControllerLayout(ControllerLayout):
             "PS": "X-Box",
             "Options": "Start",
             "L1": "LB",
-            "L2": "RB",
+            "R1": "RB",
         }
 
 

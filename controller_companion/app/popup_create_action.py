@@ -7,6 +7,7 @@ from tkinter import (
     StringVar,
     ttk,
 )
+from typing import Tuple
 from PIL import Image, ImageTk
 from tkinter import messagebox
 from controller_companion.app import resources
@@ -26,7 +27,6 @@ class CreateActionPopup(tk.Toplevel):
         super().__init__(master, **kwargs)
 
         set_window_icon(self)
-        self.geometry("700x600")
 
         self.var_buttons = {}
         self.var_d_pad = IntVar()
@@ -148,7 +148,7 @@ class CreateActionPopup(tk.Toplevel):
             )
 
         error = None
-        if len(self.var_buttons.items()) == 0 and selected_d_pad_index == -1:
+        if len(active_controller_buttons) == 0:
             error = "No controller shortcut was selected!"
         elif target == "" or target == self.entry_target_command.placeholder:
             error = "No target command was specified!"
@@ -265,7 +265,12 @@ class CreateActionPopup(tk.Toplevel):
         )
         counter = 0
         buttons_per_column = 8
-        self.gamepad_input_icons = self.layout.get_button_icons(resize=(32, 32))
+        self.gamepad_input_icons = {
+            button: ImageTk.PhotoImage(image)
+            for button, image in self.layout.get_button_icons(
+                icon_size=(32, 32)
+            ).items()
+        }
         for button in self.button_mapper.keys():
             self.var_buttons[button] = IntVar()
             check = Checkbutton(

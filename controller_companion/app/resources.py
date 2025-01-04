@@ -43,6 +43,7 @@ XBOX_CONTROLLER_LAYOUT = __get_resource_path(
 PLAYSTATION_CONTROLLER_LAYOUT = __get_resource_path(
     "controller_companion/app/res/playstation_controller_layout.png"
 )
+PLUS_ICON = __get_resource_path("controller_companion/app/res/plus.png")
 XBOX_BUTTONS_DIR = __get_resource_path("controller_companion/app/res/xbox")
 PLAYSTATION_BUTTONS_DIR = __get_resource_path(
     "controller_companion/app/res/playstation"
