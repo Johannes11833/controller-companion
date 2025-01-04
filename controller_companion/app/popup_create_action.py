@@ -27,7 +27,6 @@ class CreateActionPopup(tk.Toplevel):
         super().__init__(master, **kwargs)
 
         set_window_icon(self)
-        self.geometry("700x600")
 
         self.var_buttons = {}
         self.var_d_pad = IntVar()
@@ -149,7 +148,7 @@ class CreateActionPopup(tk.Toplevel):
             )
 
         error = None
-        if len(self.var_buttons.items()) == 0 and selected_d_pad_index == -1:
+        if len(active_controller_buttons) == 0:
             error = "No controller shortcut was selected!"
         elif target == "" or target == self.entry_target_command.placeholder:
             error = "No target command was specified!"

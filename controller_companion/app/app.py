@@ -40,7 +40,6 @@ class ControllerCompanion(tk.Tk):
         self.title(controller_companion.APP_NAME)
 
         set_window_icon(self)
-        self.geometry("550x280")
         self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
         self.settings_file = controller_companion.CONFIG_PATH
 
@@ -112,7 +111,7 @@ class ControllerCompanion(tk.Tk):
         help_.add_command(label="About", command=lambda: AboutScreen(self))
 
         # ---------------------------------------------------------------------------- #
-        self.rowheight = 40
+        self.rowheight = 30
         tk.Label(self, text="Defined Mappings").pack(fill=tk.X)
         s = ttk.Style()
         s.configure("Treeview", rowheight=self.rowheight)
@@ -124,6 +123,7 @@ class ControllerCompanion(tk.Tk):
                 "delete mapping(s)": lambda: self.delete_action(),
             },
         )
+        self.treeview.pack(expand=True, fill=tk.BOTH)
         self.treeview.heading("#0", text="Shortcut")
         self.treeview.heading("name", text="Name")
         self.treeview.heading("target", text="Target")
@@ -186,7 +186,6 @@ class ControllerCompanion(tk.Tk):
                 image=combined_icons,
             )
             self.mapping_treeview_icons.append(combined_icons)
-        self.treeview.pack(expand=True, fill=tk.BOTH)
 
     def minimize_to_tray(self, is_launch: bool = False):
         if self.var_settings_minimize_on_close.get() == 0 and not is_launch:

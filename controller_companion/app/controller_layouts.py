@@ -116,9 +116,9 @@ class XboxControllerLayout(ControllerLayout):
             "Right": (1, 0),
             "Up": (0, 1),
             "Down": (0, -1),
-            #   "Left-Down": (-1, -1),
-            #  "Left-Up": (-1, 1),
-            # "Right-Up": (1, 1),
+            # "Left-Down": (-1, -1),
+            # "Left-Up": (-1, 1),
+            # "Right-Up": (1, 1),g
             # "Right-Down": (1, -1),
         }
 
@@ -168,7 +168,7 @@ class PlayStationControllerLayout(ControllerLayout):
             "PS": "X-Box",
             "Options": "Start",
             "L1": "LB",
-            "L2": "RB",
+            "R1": "RB",
         }
 
 
