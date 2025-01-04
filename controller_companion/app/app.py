@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import signal
 import subprocess
 from pathlib import Path
 import sys
@@ -373,8 +374,25 @@ class ControllerCompanion(tk.Tk):
 
 
 def launch_app(minimized: bool = False):
+    pid_file = Path(controller_companion.PID_PATH)
+    if pid_file.is_file():
+        pid_running = int(pid_file.read_text())
+        try:
+            # kill the running instance
+            # (might fail if it is not running but .pid file exists)
+            os.kill(pid_running, signal.SIGTERM)
+        except OSError:
+            logger.warning("Failed to kill running instance!")
+    pid_current = os.getpid()
+    pid_file.parent.mkdir(parents=True, exist_ok=True)
+    pid_file.write_text(str(pid_current))
+
+    # launch the app
     app = ControllerCompanion(launch_minimized=minimized)
     app.mainloop()
+
+    # remove the pid file if the app is exited by the user
+    pid_file.unlink()
 
 
 if __name__ == "__main__":
