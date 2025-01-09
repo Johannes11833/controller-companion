@@ -166,16 +166,20 @@ class ControllerCompanion(tk.Tk):
             controller: get_layout(controller).get_button_icons(icon_size=icon_size)
             for controller in ControllerType
         }
+        max_width_shortcut = 0
         for mapping in self.defined_actions:
-            plus_icon = Image.open(resources.PLUS_ICON).resize((15, 15))
+            plus_icon = Image.open(resources.PLUS_ICON).resize(
+                (self.rowheight // 3, self.rowheight // 3)
+            )
             icons = []
             for btn in mapping.active_controller_buttons:
                 icons.append(layout_icons[mapping.controller_type][btn])
                 icons.append(plus_icon)
             icons.pop()
-            combined_icons = ImageTk.PhotoImage(
+            shortcut_icon = ImageTk.PhotoImage(
                 combine_images_horizontally(images=icons, height=self.rowheight)
             )
+            max_width_shortcut = max(max_width_shortcut, shortcut_icon.width())
             self.treeview.insert(
                 "",
                 tk.END,
@@ -184,9 +188,12 @@ class ControllerCompanion(tk.Tk):
                     mapping.name,
                     mapping.target,
                 ),
-                image=combined_icons,
+                image=shortcut_icon,
             )
-            self.mapping_treeview_icons.append(combined_icons)
+            self.mapping_treeview_icons.append(shortcut_icon)
+        # make sure the width of the first column is large enough to fit the shortcut image
+        # an offset is added to account for the treeview's indicator at the very left
+        self.treeview.column("#0", minwidth=max_width_shortcut + 30)
 
     def minimize_to_tray(self, is_launch: bool = False):
         if self.var_settings_minimize_on_close.get() == 0 and not is_launch:
@@ -237,8 +244,8 @@ class ControllerCompanion(tk.Tk):
         selection = self.treeview.selection()
         for item in selection:
             delete_idx = self.treeview.index(item)
-            self.treeview.delete(item)
             self.defined_actions.pop(delete_idx)
+        self.update_mappings_ui()
 
         if len(selection) > 0:
             self.save_settings()
