@@ -4,6 +4,7 @@ from tkinter import Tk
 from typing import List
 from PIL import Image, ImageTk
 
+
 from controller_companion.app import resources
 
 

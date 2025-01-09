@@ -47,7 +47,7 @@ class Controller:
         controller_type = ControllerType.XBOX
         if "xbox" in name.lower():
             controller_type = ControllerType.XBOX
-        elif any([n in name.lower() for n in ["ps4", "ps3", "ps3", "playstation"]]):
+        elif any([n in name.lower() for n in ["ps3", "ps4", "ps5", "playstation"]]):
             controller_type = ControllerType.PLAYSTATION
         else:
             logger.warning(

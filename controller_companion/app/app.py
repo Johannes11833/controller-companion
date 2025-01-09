@@ -11,10 +11,14 @@ from tkinter import ttk
 from typing import List
 import webbrowser
 import requests
-import platform
 import pystray
 from PIL import Image, ImageTk
 import controller_companion
+from controller_companion.app.autostart import (
+    autostart_supported,
+    get_autostart_enabled,
+    set_auto_start,
+)
 from controller_companion.app.controller_layouts import ControllerType, get_layout
 from controller_companion.app.utils import (
     OperatingSystem,
@@ -82,25 +86,22 @@ class ControllerCompanion(tk.Tk):
 
         # Settings Menu
         settings_ = Menu(menu, tearoff=0)
-        self.var_settings_minimize_on_close = tk.IntVar()
-        self.var_settings_auto_start = tk.IntVar()
-        self.var_settings_minimize_on_close.set(self.settings["minimize_on_exit"])
-        self.var_settings_auto_start.set(self.settings["auto_start"])
+        self.var_settings_minimize_on_close = tk.BooleanVar(
+            value=self.settings["minimize_on_exit"]
+        )
+        self.var_settings_auto_start = tk.BooleanVar(value=get_autostart_enabled())
         menu.add_cascade(label="Settings", menu=settings_)
         settings_.add_checkbutton(
             label="Minimize to system tray",
-            onvalue=1,
-            offvalue=0,
             variable=self.var_settings_minimize_on_close,
             command=self.save_settings,
         )
 
-        if resources.is_frozen() and get_os() == OperatingSystem.WINDOWS:
-            # only display auto start option if this is an executable
+        if (
+            resources.is_frozen() and autostart_supported()
+        ):  # only display auto start option if this is an executable
             settings_.add_checkbutton(
                 label="Auto Start",
-                onvalue=1,
-                offvalue=0,
                 variable=self.var_settings_auto_start,
                 command=self.toggle_autostart,
             )
@@ -146,7 +147,7 @@ class ControllerCompanion(tk.Tk):
         self.observer = controller_observer.ControllerObserver()
         self.observer.start_detached(
             defined_actions=self.defined_actions,
-            debug=self.settings.get("debug", 0) == 1,
+            debug=self.settings.get("debug", False),
             controller_callback=self.update_controller_ui,
             disabled_controllers=self.settings["disabled_controllers"],
         )
@@ -285,9 +286,8 @@ class ControllerCompanion(tk.Tk):
 
     def load_settings(self):
         settings = {
-            "minimize_on_exit": 1,
-            "auto_start": 0,
-            "debug": 0,
+            "minimize_on_exit": True,
+            "debug": False,
             "disabled_controllers": [],
         }
 
@@ -324,7 +324,6 @@ class ControllerCompanion(tk.Tk):
         self.settings.update(
             {
                 "minimize_on_exit": self.var_settings_minimize_on_close.get(),
-                "auto_start": self.var_settings_auto_start.get(),
                 "actions": [item.to_dict() for item in self.defined_actions],
             }
         )
@@ -334,19 +333,7 @@ class ControllerCompanion(tk.Tk):
         logger.debug(f"Saved settings to: {self.settings_file}")
 
     def toggle_autostart(self):
-        executable = resources.get_executable_path()
-        autostart = self.var_settings_auto_start.get() == 1
-
-        if platform.system() == "Windows":
-            bat_file = Path(
-                Path.home(),
-                "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/controller_companion.bat",
-            )
-            if autostart:
-                bat_file.write_text(f'start "" "{executable.absolute()}" "-m"')
-            else:
-                bat_file.unlink(missing_ok=True)
-
+        set_auto_start(enable=self.var_settings_auto_start.get())
         self.save_settings()
 
     def check_for_updates(self):
