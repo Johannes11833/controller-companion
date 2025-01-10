@@ -374,7 +374,14 @@ def launch_app(minimized: bool = False):
         try:
             # kill the running instance
             # (might fail if it is not running but .pid file exists)
-            os.kill(pid_running, signal.SIGKILL)
+            os.kill(
+                pid_running,
+                (
+                    signal.SIGTERM
+                    if get_os() == OperatingSystem.WINDOWS
+                    else signal.SIGKILL
+                ),
+            )
         except OSError:
             logger.warning("Failed to kill running instance!")
     pid_current = os.getpid()
