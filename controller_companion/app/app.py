@@ -10,7 +10,7 @@ from typing import List
 
 import requests
 from PIL import Image
-from PySide6.QtCore import QSettings, QTimer, Qt, Signal
+from PySide6.QtCore import QSettings, QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -44,7 +44,9 @@ from controller_companion.app.utils import (
     invert_glyph,
     is_dark_appearance,
     pil_to_qpixmap,
+    prettify_controller_name,
     set_window_icon,
+    solid_silhouette,
 )
 from controller_companion.app.widgets.icon_delegate import IconDelegate
 from controller_companion.app.widgets.popup_menu_widgets import PopupMenuTreeWidget
@@ -539,11 +541,17 @@ class ControllerCompanion(QMainWindow):
 
         self.controllers_strip_layout.addWidget(QLabel("Controllers:"))
 
+        show_numbers = len(controllers) > 1
         for i, c in enumerate(controllers):
-            chip = QPushButton(f"{i + 1}: {c.name}")
+            label = f"{prettify_controller_name(c.name)} Controller"
+            if show_numbers:
+                # only disambiguate when several controllers are connected
+                label = f"{label} {i + 1}"
+            chip = QPushButton(label)
             chip.setCheckable(True)
             chip.setChecked(c.guid not in self.settings["disabled_controllers"])
             chip.setToolTip("Click to enable/disable this controller")
+            self.set_chip_icon(chip, c)
             chip.setStyleSheet(
                 "QPushButton {"
                 " padding: 2px 10px;"
@@ -565,6 +573,40 @@ class ControllerCompanion(QMainWindow):
             self.controllers_strip_layout.addWidget(chip)
 
         self.controllers_strip_layout.addStretch()
+
+    def set_chip_icon(self, chip: QPushButton, controller: Controller):
+        """Puts a small silhouette glyph of the controller family on the chip.
+
+        White while the controller is enabled (accent-colored chip) and muted
+        while it is disabled.
+        """
+        icon_dir = controller.layout.get_icon_dir()
+        if icon_dir == resources.XBOX_BUTTONS_DIR:
+            glyph_path = icon_dir / "X-Box.png"
+        elif icon_dir == resources.PLAYSTATION_BUTTONS_DIR:
+            glyph_path = icon_dir / "PS.png"
+        else:
+            return
+        if not glyph_path.is_file():
+            return
+
+        glyph = Image.open(glyph_path).resize((32, 32))
+        muted = self.palette().mid().color()
+        off_icon = QIcon(
+            pil_to_qpixmap(
+                solid_silhouette(glyph, (muted.red(), muted.green(), muted.blue(), 255))
+            )
+        )
+        on_icon = QIcon(
+            pil_to_qpixmap(solid_silhouette(glyph, (255, 255, 255, 255)))
+        )
+        chip.setIconSize(QSize(16, 16))
+        chip.setIcon(on_icon if chip.isChecked() else off_icon)
+        chip.toggled.connect(
+            lambda checked, c=chip, on=on_icon, off=off_icon: c.setIcon(
+                on if checked else off
+            )
+        )
 
     def toggle_controller(self, guid: str, enabled: bool):
         # the disabled_controllers list object is shared with the observer thread,
