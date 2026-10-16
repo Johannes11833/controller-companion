@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
-from PIL import Image, ImageTk
+from PIL import Image
 
 from controller_companion.app import resources
+from controller_companion.app.utils import add_silhouette_border, is_dark_appearance
 
 
 class ControllerType(Enum):
@@ -68,9 +69,13 @@ class ControllerLayout(ABC):
     def get_button_icons(
         self,
         icon_size: Optional[Tuple[int, int]] = None,
-    ) -> Dict[str, ImageTk.PhotoImage]:
+    ) -> Dict[str, Image.Image]:
         icons = {}
         dir = self.get_icon_dir()
+        # the glyph artwork is dark and disappears on dark backgrounds; only in
+        # dark mode add a contrasting silhouette border around it
+        border_width = 1 if is_dark_appearance() else 0
+        border_color = (255, 255, 255, 255)
         for button in list(self.get_button_layout().keys()) + list(
             self.get_d_pad_layout().keys()
         ):
@@ -78,7 +83,18 @@ class ControllerLayout(ABC):
             if path.is_file():
                 image = Image.open(path)
                 if icon_size:
-                    image = image.resize(icon_size)
+                    # shrink the artwork so adding the border keeps the final
+                    # icon at exactly the requested size
+                    image = image.resize(
+                        (
+                            icon_size[0] - 2 * border_width,
+                            icon_size[1] - 2 * border_width,
+                        )
+                    )
+                    if border_width:
+                        image = add_silhouette_border(
+                            image, border_color, border_width
+                        )
             else:
                 image = None
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "controller-companion"
-version = "0.7.1"
+version = "0.8.0"
 description = "Python app for assigning shortcut actions to game controllers."
 authors = [
     "Johannes Gundlach <24914225+Johannes11833@users.noreply.github.com>",
@@ -9,13 +9,13 @@ readme = "README.md"
 include = ["controller_companion/app/res/*"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.14"
+python = ">=3.10,<3.14"
 pygame = "^2.6.1"
-pystray = "^0.19.5"
 pillow = "^11.0.0"
 pyautogui = "^0.9.54"
 requests = "^2.32.3"
 rich = "^13.9.4"
+pyside6-essentials = "^6.12.0"
 
 
 [tool.poetry.group.dev.dependencies]
