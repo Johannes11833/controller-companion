@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -96,7 +97,7 @@ class ControllerCompanion(QMainWindow):
         )
         # ---------------------------------------------------------------------------- #
 
-        self.setMinimumWidth(660)
+        self.setMinimumWidth(600)
         self.setMinimumHeight(400)
         geometry = self.ui_settings.value("geometry")
         if geometry is not None:
@@ -109,8 +110,8 @@ class ControllerCompanion(QMainWindow):
             QTimer.singleShot(100, lambda: self.minimize_to_tray(is_launch=True))
 
     def build_actions(self):
-        # the mapping actions are shared between the menu bar, the context menu
-        # and the keyboard shortcuts, so they are created once here
+        # the mapping actions are shared between the File and Actions menus, the
+        # context menu and the keyboard shortcuts, so they are created once here
         self.action_add_mapping = QAction("Add mapping", self)
         self.action_add_mapping.setShortcut(QKeySequence("Ctrl+N"))
         self.action_add_mapping.triggered.connect(self.open_add_actions)
@@ -129,6 +130,14 @@ class ControllerCompanion(QMainWindow):
 
     def build_menu(self):
         menu = self.menuBar()
+        # tightly packed menu bar items
+        menu.setStyleSheet(
+            "QMenuBar::item { padding: 3px 6px; }"
+            "QMenuBar::item:selected {"
+            " background: palette(midlight);"
+            " border-radius: 4px;"
+            "}"
+        )
 
         # File Menu
         file_menu = menu.addMenu("File")
@@ -168,6 +177,14 @@ class ControllerCompanion(QMainWindow):
             self.action_auto_start.toggled.connect(self.toggle_autostart)
             settings_menu.addAction(self.action_auto_start)
 
+        # Actions menu: quick access to all mapping actions; these are the same
+        # QActions that the File menu and the context menu use
+        actions_menu = menu.addMenu("Actions")
+        actions_menu.addAction(self.action_add_mapping)
+        actions_menu.addAction(self.action_edit_mapping)
+        actions_menu.addAction(self.action_duplicate_mapping)
+        actions_menu.addAction(self.action_delete_mapping)
+
         # Help Menu
         help_menu = menu.addMenu("Help")
         check_updates = QAction("Check for Updates", self)
@@ -178,13 +195,13 @@ class ControllerCompanion(QMainWindow):
         about.triggered.connect(self.open_about)
         help_menu.addAction(about)
 
-        # search bar in the top-right corner of the menu bar; the container keeps
+        # search box in the top-right corner of the menu bar; the container keeps
         # the field away from the window edges
-        search_container = QWidget(self.menuBar())
-        search_layout = QHBoxLayout(search_container)
-        search_layout.setContentsMargins(0, 3, 8, 3)
+        corner_container = QWidget(self.menuBar())
+        corner_layout = QHBoxLayout(corner_container)
+        corner_layout.setContentsMargins(0, 3, 8, 3)
 
-        self.filter_box = QLineEdit(search_container)
+        self.filter_box = QLineEdit(corner_container)
         self.filter_box.setPlaceholderText("Filter mappings…")
         self.filter_box.setClearButtonEnabled(True)
         self.filter_box.setFixedWidth(150)
@@ -198,9 +215,9 @@ class ControllerCompanion(QMainWindow):
             "QLineEdit:focus { border: 1px solid palette(highlight); }"
         )
         self.filter_box.textChanged.connect(self.apply_filter)
-        search_layout.addWidget(self.filter_box)
+        corner_layout.addWidget(self.filter_box)
 
-        self.menuBar().setCornerWidget(search_container, Qt.Corner.TopRightCorner)
+        self.menuBar().setCornerWidget(corner_container, Qt.Corner.TopRightCorner)
 
     def build_main_window(self):
         central_widget = QWidget(self)
@@ -225,9 +242,13 @@ class ControllerCompanion(QMainWindow):
         self.treeview.setSelectionMode(
             QAbstractItemView.SelectionMode.ExtendedSelection
         )
-        self.treeview.setItemDelegateForColumn(
-            0, IconDelegate(row_height=self.rowheight, parent=self.treeview)
+        self.shortcut_delegate = IconDelegate(
+            row_height=self.rowheight, parent=self.treeview
         )
+        self.treeview.setItemDelegateForColumn(0, self.shortcut_delegate)
+        # the shortcut column is always sized to exactly fit its icons and
+        # cannot be resized by the user
+        self.treeview.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.treeview.setColumnWidth(1, 170)
         self.treeview.setColumnWidth(2, 150)
         self.treeview.setColumnWidth(3, 100)
@@ -314,8 +335,10 @@ class ControllerCompanion(QMainWindow):
             )
             item.setData(0, Qt.ItemDataRole.UserRole, shortcut_pixmap)
 
-        # make sure the width of the first column is large enough to fit the shortcut images
-        self.treeview.setColumnWidth(0, max_width_shortcut + 30)
+        # exactly fit the widest shortcut image (including the delegate's padding)
+        self.treeview.setColumnWidth(
+            0, max_width_shortcut + 2 * self.shortcut_delegate.padding
+        )
 
         self.apply_filter()
 
@@ -455,9 +478,7 @@ class ControllerCompanion(QMainWindow):
             name=f"{source.name} (copy)",
             controller_type=source.controller_type,
         )
-        popup = CreateActionPopup(
-            self, mapping=duplicate, title="Duplicate Action"
-        )
+        popup = CreateActionPopup(self, mapping=duplicate, title="Duplicate Action")
         popup.exec()
         if popup.result is not None:
             self.defined_actions.append(popup.result)
@@ -472,10 +493,7 @@ class ControllerCompanion(QMainWindow):
         selection = self.treeview.selectedItems()
         # remove the mappings in reverse order so the indices stay valid
         for idx in sorted(
-            (
-                self.treeview.indexOfTopLevelItem(item)
-                for item in selection
-            ),
+            (self.treeview.indexOfTopLevelItem(item) for item in selection),
             reverse=True,
         ):
             self.defined_actions.pop(idx)
