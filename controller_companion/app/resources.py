@@ -34,8 +34,14 @@ APP_ICON_PNG = __get_resource_path("controller_companion/app/res/app.png")
 APP_ICON_PNG_TRAY_32 = __get_resource_path(
     "controller_companion/app/res/tray_icon_32.png"
 )
+APP_ICON_PNG_TRAY_32_DARK = __get_resource_path(
+    "controller_companion/app/res/tray_icon_dark_32.png"
+)
 APP_ICON_PNG_TRAY_16 = __get_resource_path(
     "controller_companion/app/res/tray_icon_16.png"
+)
+APP_ICON_PNG_TRAY_16_DARK = __get_resource_path(
+    "controller_companion/app/res/tray_icon_dark_16.png"
 )
 XBOX_CONTROLLER_LAYOUT = __get_resource_path(
     "controller_companion/app/res/xbox_controller_layout.png"
