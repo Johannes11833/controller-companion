@@ -262,11 +262,15 @@ class CreateActionPopup(QDialog):
             )
         )
 
-        # remove the input widgets of the previously selected layout
+        # remove the input widgets of the previously selected layout; detach
+        # them immediately, deleteLater() alone only runs once the dialog's
+        # event loop unwinds which would leave the old buttons visibly piled
+        # on top of the new ones
         while self.frame_buttons_layout.count() > 0:
             item = self.frame_buttons_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.setParent(None)
                 widget.deleteLater()
 
         self.var_buttons.clear()
@@ -274,7 +278,7 @@ class CreateActionPopup(QDialog):
             self.button_group.deleteLater()
         self.button_group = QButtonGroup(self)
 
-        icon_size = (24, 24)
+        icon_size = (28, 28)
         self.gamepad_input_icons = {
             button: pil_to_qpixmap(image) if image is not None else None
             for button, image in self.layout.get_button_icons(

@@ -521,11 +521,13 @@ class ControllerCompanion(QMainWindow):
     def update_controller_ui(self, controllers: List[Controller]):
         self.controllers = controllers
 
-        # remove the old chips
+        # remove the old chips; detach them immediately so they cannot linger
+        # visible on top of the rebuilt ones until deleteLater() fires
         while self.controllers_strip_layout.count() > 0:
             item = self.controllers_strip_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.setParent(None)
                 widget.deleteLater()
 
         if not controllers:
