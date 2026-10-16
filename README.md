@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="controller_companion/app/res/app.png" width="96" alt="Controller Companion icon">
+  <img src="https://raw.githubusercontent.com/Johannes11833/controller-companion/main/controller_companion/app/res/app.png" width="96" alt="Controller Companion icon">
 </p>
 
 <h1 align="center">Controller Companion</h1>
@@ -13,7 +13,7 @@
   <a href="https://pypi.org/project/controller-companion/"><img src="https://img.shields.io/pypi/v/controller-companion" alt="PyPI version"></a>
   <a href="https://pypi.org/project/controller-companion/"><img src="https://img.shields.io/pypi/pyversions/controller-companion" alt="Python versions"></a>
   <a href="https://github.com/Johannes11833/controller-companion/releases"><img src="https://img.shields.io/github/v/release/Johannes11833/controller-companion?label=download" alt="Latest release"></a>
-  <a href="https://github.com/Johannes11833/controller-companion/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
+  <a href="https://github.com/Johannes11833/controller-companion/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"></a>
 </p>
 
 Controller Companion listens to your connected controllers and triggers an action whenever you press a defined button combination — while gaming, streaming, or anywhere else on your system.
@@ -34,12 +34,14 @@ Controller Companion listens to your connected controllers and triggers an actio
 
 ## Screenshots
 
-<table align="center">
+<div align="center">
+<table>
   <tr>
-    <td align="center"><img src="demo/app.png" height="320" alt="Main window"><br><em>Main window</em></td>
-    <td align="center"><img src="demo/add_new_shortcut.png" height="320" alt="Creating a new shortcut"><br><em>Creating a new shortcut</em></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/Johannes11833/controller-companion/main/demo/app.png" height="320" alt="Main window"><br><em>Main window</em></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/Johannes11833/controller-companion/main/demo/add_new_shortcut.png" height="320" alt="Creating a new shortcut"><br><em>Creating a new shortcut</em></td>
   </tr>
 </table>
+</div>
 
 ## Installation
 Requires Python 3.10–3.13.
@@ -90,4 +92,4 @@ poetry run build_controller_companion_exe
 - PlayStation 5 controller artwork: [pngall.com](https://www.pngall.com)
 
 ## License
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License — see [LICENSE](https://github.com/Johannes11833/controller-companion/blob/main/LICENSE) for details.
