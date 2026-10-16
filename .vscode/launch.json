@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Controller Companion (GUI)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/controller_companion/app/app.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Controller Companion (GUI, minimized to tray)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/controller_companion/app/app.py",
+            "args": [
+                "--minimized"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Controller Companion (console mode, no UI)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "controller_companion.launch",
+            "args": [
+                "--debug"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

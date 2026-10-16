@@ -10,7 +10,7 @@ a_cli = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['tkinter', '_tkinter', 'mouseinfo'],
     noarchive=False,
     optimize=0,
 )
@@ -25,7 +25,7 @@ a_app = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['tkinter', '_tkinter', 'mouseinfo'],
     noarchive=False,
     optimize=0,
 )
