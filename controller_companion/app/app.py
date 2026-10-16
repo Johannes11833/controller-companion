@@ -285,7 +285,9 @@ class ControllerCompanion(QMainWindow):
         else:
             image_path = resources.APP_ICON_PNG_TRAY_32
         self.tray_icon.setIcon(QIcon(str(image_path)))
-        self.tray_icon.setToolTip(controller_companion.APP_NAME)
+        self.tray_icon.setToolTip(
+            f"{controller_companion.APP_NAME} {controller_companion.VERSION}"
+        )
 
         tray_menu = QMenu(self)
         show_action = QAction("Show", self)
@@ -297,7 +299,9 @@ class ControllerCompanion(QMainWindow):
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.activated.connect(self.on_tray_activated)
-        self.tray_icon.setVisible(False)
+        # keep the tray icon visible for the whole lifetime of the app, even
+        # while the window is shown
+        self.tray_icon.setVisible(True)
 
     def update_mappings_ui(self):
         self.treeview.clear()
@@ -431,7 +435,6 @@ class ControllerCompanion(QMainWindow):
         self.ui_settings.setValue("geometry", self.saveGeometry())
 
     def show_window(self, _=None):
-        self.tray_icon.setVisible(False)
         self.show()
         self.raise_()
         self.activateWindow()
