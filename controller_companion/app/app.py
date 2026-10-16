@@ -10,16 +10,22 @@ from typing import List
 
 import requests
 from PIL import Image
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QSettings, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QStackedWidget,
     QSystemTrayIcon,
+    QToolBar,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -40,10 +46,7 @@ from controller_companion.app.utils import (
     set_window_icon,
 )
 from controller_companion.app.widgets.icon_delegate import IconDelegate
-from controller_companion.app.widgets.popup_menu_widgets import (
-    PopupMenuListWidget,
-    PopupMenuTreeWidget,
-)
+from controller_companion.app.widgets.popup_menu_widgets import PopupMenuTreeWidget
 from controller_companion.controller import Controller
 from controller_companion.logs import logger
 from controller_companion.mapping import Mapping
@@ -67,13 +70,19 @@ class ControllerCompanion(QMainWindow):
         self.quit_requested = False
         self.observer = None
 
+        # ui settings managed by Qt (e.g. window geometry); this is kept separate
+        # from the app config file
+        self.ui_settings = QSettings("controller-companion", "ui")
+
         # load settings
         self.settings = self.load_settings()
 
         self.controllers: List[Controller] = []
         self.rowheight = 30
 
+        self.build_actions()
         self.build_menu()
+        self.build_toolbar()
         self.build_main_window()
         self.setup_tray_icon()
 
@@ -90,27 +99,74 @@ class ControllerCompanion(QMainWindow):
         )
         # ---------------------------------------------------------------------------- #
 
-        self.resize(500, 700)
+        geometry = self.ui_settings.value("geometry")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(820, 520)
 
         if launch_minimized:
             # use a timer so the window is fully initialized before hiding it
             QTimer.singleShot(100, lambda: self.minimize_to_tray(is_launch=True))
+
+    def build_actions(self):
+        # the mapping actions are shared between the menu bar, the toolbar and the
+        # context menu, so they are created once here
+        self.action_add_mapping = QAction("Add mapping", self)
+        self.action_add_mapping.setIconText("Add")
+        self.action_add_mapping.setShortcut(QKeySequence("Ctrl+N"))
+        self.action_add_mapping.triggered.connect(self.open_add_actions)
+
+        self.action_edit_mapping = QAction("Edit mapping", self)
+        self.action_edit_mapping.setIconText("Edit")
+        self.action_edit_mapping.setShortcut(QKeySequence("F2"))
+        self.action_edit_mapping.triggered.connect(self.edit_action)
+
+        self.action_duplicate_mapping = QAction("Duplicate mapping", self)
+        self.action_duplicate_mapping.setIconText("Duplicate")
+        self.action_duplicate_mapping.setShortcut(QKeySequence("Ctrl+D"))
+        self.action_duplicate_mapping.triggered.connect(self.duplicate_action)
+
+        self.action_delete_mapping = QAction("Delete mapping", self)
+        self.action_delete_mapping.setIconText("Delete")
+        self.action_delete_mapping.setShortcut(QKeySequence("Del"))
+        self.action_delete_mapping.triggered.connect(self.delete_action)
+
+    def build_toolbar(self):
+        toolbar = QToolBar("Mappings", self)
+        toolbar.setMovable(False)
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(toolbar)
+
+        toolbar.addAction(self.action_add_mapping)
+        toolbar.addAction(self.action_edit_mapping)
+        toolbar.addAction(self.action_duplicate_mapping)
+        toolbar.addAction(self.action_delete_mapping)
+
+        spacer = QWidget(toolbar)
+        spacer.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+        toolbar.addWidget(spacer)
+
+        self.filter_box = QLineEdit(toolbar)
+        self.filter_box.setPlaceholderText("Filter mappings…")
+        self.filter_box.setClearButtonEnabled(True)
+        self.filter_box.setMaximumWidth(240)
+        self.filter_box.textChanged.connect(self.apply_filter)
+        toolbar.addWidget(self.filter_box)
 
     def build_menu(self):
         menu = self.menuBar()
 
         # File Menu
         file_menu = menu.addMenu("File")
+        file_menu.addAction(self.action_add_mapping)
+        file_menu.addAction(self.action_edit_mapping)
+        file_menu.addAction(self.action_duplicate_mapping)
+        file_menu.addAction(self.action_delete_mapping)
 
-        add_mapping = QAction("Add mapping", self)
-        add_mapping.setShortcut(QKeySequence("Ctrl+N"))
-        add_mapping.triggered.connect(self.open_add_actions)
-        file_menu.addAction(add_mapping)
-
-        delete_mapping = QAction("Delete mapping", self)
-        delete_mapping.setShortcut(QKeySequence("Del"))
-        delete_mapping.triggered.connect(self.delete_action)
-        file_menu.addAction(delete_mapping)
+        file_menu.addSeparator()
 
         open_config = QAction("Open config file", self)
         open_config.setShortcut(QKeySequence("Ctrl+C"))
@@ -157,13 +213,17 @@ class ControllerCompanion(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # ------------------------------- mappings table ------------------------------- #
-        layout.addWidget(QLabel("Defined Mappings", central_widget))
-
         self.treeview = PopupMenuTreeWidget(
             central_widget,
-            menu_actions={"delete mapping(s)": self.delete_action},
+            menu_actions={
+                "edit mapping": self.edit_action,
+                "duplicate mapping": self.duplicate_action,
+                "delete mapping(s)": self.delete_action,
+            },
         )
-        self.treeview.setHeaderLabels(["Shortcut", "Name", "Target"])
+        self.treeview.setHeaderLabels(
+            ["Shortcut", "Name", "Action", "Controller", "Target"]
+        )
         self.treeview.setRootIsDecorated(False)
         self.treeview.setAllColumnsShowFocus(True)
         self.treeview.setSelectionMode(
@@ -172,20 +232,33 @@ class ControllerCompanion(QMainWindow):
         self.treeview.setItemDelegateForColumn(
             0, IconDelegate(row_height=self.rowheight, parent=self.treeview)
         )
+        self.treeview.setColumnWidth(1, 170)
+        self.treeview.setColumnWidth(2, 150)
+        self.treeview.setColumnWidth(3, 100)
         self.treeview.header().setStretchLastSection(True)
-        layout.addWidget(self.treeview, 1)
+        self.treeview.itemSelectionChanged.connect(self.update_action_states)
+        self.treeview.itemDoubleClicked.connect(lambda *_: self.edit_action())
+
+        # hint overlay that is shown while the table is empty (or filtered empty)
+        self.empty_label = QLabel(central_widget)
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_label.setWordWrap(True)
+        self.empty_label.setStyleSheet("color: gray;")
+
+        self.mappings_stack = QStackedWidget(central_widget)
+        self.mappings_stack.addWidget(self.treeview)
+        self.mappings_stack.addWidget(self.empty_label)
+        layout.addWidget(self.mappings_stack, 1)
         self.update_mappings_ui()
 
         # --------------------------- connected controllers --------------------------- #
-        layout.addWidget(QLabel("Connected Controllers", central_widget))
-        self.listbox_controllers = PopupMenuListWidget(
-            central_widget,
-            menu_actions={"toggle on/off": self.toggle_controller},
-        )
-        self.listbox_controllers.setSelectionMode(
-            QAbstractItemView.SelectionMode.ExtendedSelection
-        )
-        layout.addWidget(self.listbox_controllers, 1)
+        controllers_strip = QWidget(central_widget)
+        self.controllers_strip_layout = QHBoxLayout(controllers_strip)
+        self.controllers_strip_layout.setContentsMargins(0, 0, 0, 0)
+        self.controllers_strip_layout.setSpacing(8)
+        layout.addWidget(controllers_strip)
+
+        self.update_controller_ui([])
 
     def setup_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -234,12 +307,64 @@ class ControllerCompanion(QMainWindow):
             max_width_shortcut = max(max_width_shortcut, shortcut_pixmap.width())
 
             item = QTreeWidgetItem(
-                self.treeview, ["", mapping.name, mapping.target]
+                self.treeview,
+                [
+                    "",
+                    mapping.name,
+                    mapping.action_type.value,
+                    mapping.controller_type.value,
+                    mapping.target,
+                ],
             )
             item.setData(0, Qt.ItemDataRole.UserRole, shortcut_pixmap)
 
         # make sure the width of the first column is large enough to fit the shortcut images
         self.treeview.setColumnWidth(0, max_width_shortcut + 30)
+
+        self.apply_filter()
+
+    def apply_filter(self, _=None):
+        """Hide mappings that do not match the filter text and show an overlay hint
+        while the table has nothing to show."""
+        filter_text = self.filter_box.text().strip().lower()
+
+        visible = 0
+        for i in range(self.treeview.topLevelItemCount()):
+            item = self.treeview.topLevelItem(i)
+            mapping = self.defined_actions[i]
+            haystack = " ".join(
+                (
+                    mapping.name,
+                    mapping.target,
+                    mapping.action_type.value,
+                    mapping.controller_type.value,
+                    mapping.get_shortcut_string(),
+                )
+            ).lower()
+
+            matches = filter_text in haystack
+            item.setHidden(not matches)
+            visible += int(matches)
+
+        if len(self.defined_actions) == 0:
+            self.empty_label.setText(
+                'No mappings yet.\nClick "Add" or press Ctrl+N to create one.'
+            )
+            self.mappings_stack.setCurrentWidget(self.empty_label)
+        elif visible == 0:
+            self.empty_label.setText("No mappings match your filter.")
+            self.mappings_stack.setCurrentWidget(self.empty_label)
+        else:
+            self.mappings_stack.setCurrentWidget(self.treeview)
+
+        self.update_action_states()
+
+    def update_action_states(self):
+        """Enable the mapping actions depending on the current selection."""
+        selected = len(self.treeview.selectedItems())
+        self.action_edit_mapping.setEnabled(selected == 1)
+        self.action_duplicate_mapping.setEnabled(selected == 1)
+        self.action_delete_mapping.setEnabled(selected >= 1)
 
     def closeEvent(self, event: QCloseEvent):
         if (
@@ -263,6 +388,7 @@ class ControllerCompanion(QMainWindow):
             logger.warning("System tray is not available; keeping the window open.")
             return
 
+        self._save_geometry()
         self.hide()
         self.tray_icon.setVisible(True)
 
@@ -275,11 +401,15 @@ class ControllerCompanion(QMainWindow):
 
     def quit_window(self, _=None):
         self.quit_requested = True
+        self._save_geometry()
         if self.observer is not None:
             self.observer.stop()
         if getattr(self, "tray_icon", None) is not None:
             self.tray_icon.setVisible(False)
         QApplication.instance().quit()
+
+    def _save_geometry(self):
+        self.ui_settings.setValue("geometry", self.saveGeometry())
 
     def show_window(self, _=None):
         self.tray_icon.setVisible(False)
@@ -293,6 +423,53 @@ class ControllerCompanion(QMainWindow):
         if popup.result is not None:
             self.defined_actions.append(popup.result)
             self.update_mappings_ui()
+            self.filter_box.clear()
+            self.treeview.setCurrentItem(
+                self.treeview.topLevelItem(len(self.defined_actions) - 1)
+            )
+            self.save_settings()
+
+    def edit_action(self, _=None):
+        items = self.treeview.selectedItems()
+        if len(items) != 1:
+            return
+
+        idx = self.treeview.indexOfTopLevelItem(items[0])
+        popup = CreateActionPopup(
+            self, mapping=self.defined_actions[idx], title="Edit Action"
+        )
+        popup.exec()
+        if popup.result is not None:
+            self.defined_actions[idx] = popup.result
+            self.update_mappings_ui()
+            self.treeview.setCurrentItem(self.treeview.topLevelItem(idx))
+            self.save_settings()
+
+    def duplicate_action(self, _=None):
+        items = self.treeview.selectedItems()
+        if len(items) != 1:
+            return
+
+        idx = self.treeview.indexOfTopLevelItem(items[0])
+        source = self.defined_actions[idx]
+        duplicate = Mapping(
+            action_type=source.action_type,
+            target=source.target,
+            active_controller_buttons=list(source.active_controller_buttons),
+            name=f"{source.name} (copy)",
+            controller_type=source.controller_type,
+        )
+        popup = CreateActionPopup(
+            self, mapping=duplicate, title="Duplicate Action"
+        )
+        popup.exec()
+        if popup.result is not None:
+            self.defined_actions.append(popup.result)
+            self.update_mappings_ui()
+            self.filter_box.clear()
+            self.treeview.setCurrentItem(
+                self.treeview.topLevelItem(len(self.defined_actions) - 1)
+            )
             self.save_settings()
 
     def delete_action(self, _=None):
@@ -314,35 +491,59 @@ class ControllerCompanion(QMainWindow):
     def update_controller_ui(self, controllers: List[Controller]):
         self.controllers = controllers
 
-        self.listbox_controllers.clear()
+        # remove the old chips
+        while self.controllers_strip_layout.count() > 0:
+            item = self.controllers_strip_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        if not controllers:
+            label = QLabel("Controllers: none connected")
+            label.setEnabled(False)
+            self.controllers_strip_layout.addWidget(label)
+            self.controllers_strip_layout.addStretch()
+            return
+
+        self.controllers_strip_layout.addWidget(QLabel("Controllers:"))
+
         for i, c in enumerate(controllers):
-            item = f"Controller {i+1}: {c.name}"
+            chip = QPushButton(f"{i + 1}: {c.name}")
+            chip.setCheckable(True)
+            chip.setChecked(c.guid not in self.settings["disabled_controllers"])
+            chip.setToolTip("Click to enable/disable this controller")
+            chip.setStyleSheet(
+                "QPushButton {"
+                " padding: 2px 10px;"
+                " border: 1px solid palette(mid);"
+                " border-radius: 10px;"
+                "}"
+                "QPushButton:checked {"
+                " background: palette(highlight);"
+                " color: palette(highlighted-text);"
+                " border-color: palette(highlight);"
+                "}"
+                "QPushButton:!checked {"
+                " color: palette(mid);"
+                "}"
+            )
+            chip.toggled.connect(
+                lambda checked, guid=c.guid: self.toggle_controller(guid, checked)
+            )
+            self.controllers_strip_layout.addWidget(chip)
 
-            if c.guid in self.settings["disabled_controllers"]:
-                item += "  [disabled]"
+        self.controllers_strip_layout.addStretch()
 
-            self.listbox_controllers.addItem(item)
-
-    def toggle_controller(self, _=None):
+    def toggle_controller(self, guid: str, enabled: bool):
+        # the disabled_controllers list object is shared with the observer thread,
+        # so it must be modified in place
         disabled_controllers = self.settings["disabled_controllers"]
-        selected_idcs = [
-            item.row() for item in self.listbox_controllers.selectedIndexes()
-        ]
-        selected_guids = set([self.controllers[i].guid for i in selected_idcs])
 
-        # selected controllers that are currently enabled/ disabled
-        selected_disabled_guids = set(disabled_controllers) & selected_guids
-        selected_enabled_guids = selected_guids - selected_disabled_guids
+        if enabled and guid in disabled_controllers:
+            disabled_controllers.remove(guid)
+        elif not enabled and guid not in disabled_controllers:
+            disabled_controllers.append(guid)
 
-        # toggle: disabled controllers ---> enabled and vice versa
-        new_disabled = list(
-            (set(disabled_controllers) | selected_enabled_guids)
-            - selected_disabled_guids
-        )
-        disabled_controllers.clear()
-        disabled_controllers.extend(new_disabled)
-
-        self.update_controller_ui(self.controllers)
         self.save_settings()
 
     def load_settings(self):

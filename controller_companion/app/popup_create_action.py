@@ -36,12 +36,19 @@ from controller_companion.mapping import Mapping, ActionType
 
 
 class CreateActionPopup(QDialog):
-    def __init__(self, master=None, **kwargs):
+    def __init__(
+        self,
+        master=None,
+        mapping: Optional[Mapping] = None,
+        title: str = "Create Action",
+        **kwargs,
+    ):
         super().__init__(master, **kwargs)
-        self.setWindowTitle("Create Action")
+        self.setWindowTitle(title)
         set_window_icon(self)
 
         self.result: Optional[Mapping] = None
+        self.initial_mapping = mapping
         self.pressed_keys = set()
         self.var_buttons = {}
         self.button_group: Optional[QButtonGroup] = None
@@ -114,6 +121,31 @@ class CreateActionPopup(QDialog):
 
         self.update_layout()
         self.action_type_changed()
+        self.apply_initial_mapping()
+
+    def apply_initial_mapping(self):
+        """Prefill the inputs when editing or duplicating an existing mapping."""
+        if self.initial_mapping is None:
+            return
+
+        mapping = self.initial_mapping
+
+        # switch to the controller layout of the mapping (rebuilds the button inputs)
+        self.combobox_layout.setCurrentIndex(
+            list(ControllerType).index(mapping.controller_type)
+        )
+        self.combobox_action_type.setCurrentIndex(
+            list(ActionType).index(mapping.action_type)
+        )
+        self.entry_target_command.setText(mapping.target)
+        self.entry_name.setText(mapping.name)
+
+        for button in mapping.active_controller_buttons:
+            if button in self.var_buttons:
+                self.var_buttons[button].setChecked(True)
+            elif button in self.d_pad_mapper:
+                d_pad_index = list(self.d_pad_mapper.keys()).index(button)
+                self.button_group.button(d_pad_index).setChecked(True)
 
     def on_save(self):
         active_controller_buttons = [
