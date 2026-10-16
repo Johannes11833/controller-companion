@@ -93,6 +93,9 @@ class ControllerCompanion(QMainWindow):
         QGuiApplication.styleHints().colorSchemeChanged.connect(
             self.on_color_scheme_changed
         )
+        # colorSchemeChanged arrives before the new palette is applied, so also
+        # refresh the stylesheet colors once the palette has actually changed
+        QGuiApplication.instance().paletteChanged.connect(self.refresh_styled_widgets)
 
         # make sure UI updates from the observer thread are executed in the main thread
         self.controllers_changed.connect(self.update_controller_ui)
@@ -286,12 +289,7 @@ class ControllerCompanion(QMainWindow):
 
     def setup_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
-        if get_os() == OperatingSystem.LINUX:
-            # on linux this will look very distorted on resolutions >16x16
-            image_path = resources.APP_ICON_PNG_TRAY_16
-        else:
-            image_path = resources.APP_ICON_PNG_TRAY_32
-        self.tray_icon.setIcon(QIcon(str(image_path)))
+        self.update_tray_icon()
         self.tray_icon.setToolTip(
             f"{controller_companion.APP_NAME} {controller_companion.VERSION}"
         )
@@ -310,9 +308,41 @@ class ControllerCompanion(QMainWindow):
         # while the window is shown
         self.tray_icon.setVisible(True)
 
+    def tray_icon_path(self):
+        """The tray icon variant that contrasts with the current taskbar."""
+        if get_os() == OperatingSystem.LINUX:
+            # on linux this will look very distorted on resolutions >16x16
+            white_icon = resources.APP_ICON_PNG_TRAY_16
+            dark_icon = resources.APP_ICON_PNG_TRAY_16_DARK
+        else:
+            white_icon = resources.APP_ICON_PNG_TRAY_32
+            dark_icon = resources.APP_ICON_PNG_TRAY_32_DARK
+        # the white glyph is for dark taskbars, the dark one for light taskbars
+        return white_icon if is_dark_appearance() else dark_icon
+
+    def update_tray_icon(self):
+        self.tray_icon.setIcon(QIcon(str(self.tray_icon_path())))
+
     def on_color_scheme_changed(self, _=None):
-        """Re-render the mapping icons for the new light/dark appearance."""
+        """Re-render the theme-dependent widgets for the new appearance."""
         self.update_mappings_ui()
+        self.update_tray_icon()
+        # the new palette is applied after this signal is handled; refresh the
+        # styled widgets on the next event loop pass to pick it up reliably
+        QTimer.singleShot(0, self.refresh_styled_widgets)
+
+    def refresh_styled_widgets(self, _=None):
+        """Re-apply theme-dependent styles after a palette change.
+
+        Stylesheets resolve palette(...) references only once, when they are
+        applied, so the filter box, menu bar and controller chips have to be
+        refreshed after a theme switch.
+        """
+        self.filter_box.setStyleSheet(self.filter_box.styleSheet())
+        menu = self.menuBar()
+        menu.setStyleSheet(menu.styleSheet())
+        # rebuilding the chips also updates their glyphs for the new mode
+        self.update_controller_ui(self.controllers)
 
     def update_mappings_ui(self):
         self.treeview.clear()
