@@ -5,14 +5,26 @@ import signal
 import subprocess
 from pathlib import Path
 import sys
-import tkinter as tk
-from tkinter import Menu, messagebox
-from tkinter import ttk
-from typing import List
 import webbrowser
+from typing import List
+
 import requests
-import pystray
-from PIL import Image, ImageTk
+from PIL import Image
+from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QSystemTrayIcon,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 import controller_companion
 from controller_companion.app.autostart import (
     autostart_supported,
@@ -24,11 +36,13 @@ from controller_companion.app.utils import (
     OperatingSystem,
     combine_images_horizontally,
     get_os,
+    pil_to_qpixmap,
     set_window_icon,
 )
-from controller_companion.app.widgets.controller_listbox import (
-    PopupMenuListbox,
-    PopupMenuTreeview,
+from controller_companion.app.widgets.icon_delegate import IconDelegate
+from controller_companion.app.widgets.popup_menu_widgets import (
+    PopupMenuListWidget,
+    PopupMenuTreeWidget,
 )
 from controller_companion.controller import Controller
 from controller_companion.logs import logger
@@ -39,213 +53,259 @@ from controller_companion.app.popup_create_action import CreateActionPopup
 import controller_companion.controller_observer as controller_observer
 
 
-class ControllerCompanion(tk.Tk):
-    def __init__(self, launch_minimized=False):
-        super().__init__(className=controller_companion.APP_NAME)
-        self.title(controller_companion.APP_NAME)
+class ControllerCompanion(QMainWindow):
+    # The controller observer runs in its own thread, so this signal is used to
+    # marshal controller updates into the main thread (queued connection).
+    controllers_changed = Signal(list)
 
+    def __init__(self, launch_minimized=False):
+        super().__init__()
+        self.setWindowTitle(controller_companion.APP_NAME)
         set_window_icon(self)
-        self.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
+
         self.settings_file = controller_companion.CONFIG_PATH
+        self.quit_requested = False
+        self.observer = None
 
         # load settings
         self.settings = self.load_settings()
 
         self.controllers: List[Controller] = []
-
-        # --------------------------------- add menu --------------------------------- #
-        menu = Menu(self)
-        self.config(menu=menu)
-
-        # File Menu
-        filemenu_ = Menu(menu, tearoff=False)
-        menu.add_cascade(label="File", menu=filemenu_)
-        filemenu_.add_command(
-            label="Add mapping", command=self.open_add_actions, accelerator="Ctrl+N"
-        )
-        filemenu_.add_command(
-            label="Delete mapping",
-            command=self.delete_action,
-            accelerator="Del",
-        )
-        filemenu_.add_command(
-            label="Open config file",
-            command=self.open_config,
-            accelerator="Ctrl+C",
-        )
-        self.bind_all("<Delete>", self.delete_action)
-        self.bind_all("<Control-n>", self.open_add_actions)
-        self.bind_all("<Control-q>", self.quit_window)
-        self.bind_all("<Control-c>", lambda _: self.open_config())
-        filemenu_.add_separator()
-        filemenu_.add_command(
-            label="Quit",
-            command=self.quit_window,
-            accelerator="Ctrl+Q",
-        )
-
-        # Settings Menu
-        settings_ = Menu(menu, tearoff=0)
-        self.var_settings_minimize_on_close = tk.BooleanVar(
-            value=self.settings["minimize_on_exit"]
-        )
-        self.var_settings_auto_start = tk.BooleanVar(value=get_autostart_enabled())
-        menu.add_cascade(label="Settings", menu=settings_)
-        settings_.add_checkbutton(
-            label="Minimize to system tray",
-            variable=self.var_settings_minimize_on_close,
-            command=self.save_settings,
-        )
-
-        if (
-            resources.is_frozen() and autostart_supported()
-        ):  # only display auto start option if this is an executable
-            settings_.add_checkbutton(
-                label="Auto Start",
-                variable=self.var_settings_auto_start,
-                command=self.toggle_autostart,
-            )
-
-        # Help Menu
-        help_ = Menu(menu, tearoff=0)
-        menu.add_cascade(label="Help", menu=help_)
-        help_.add_command(label="Check for Updates", command=self.check_for_updates)
-        help_.add_command(label="About", command=lambda: AboutScreen(self))
-
-        # ---------------------------------------------------------------------------- #
         self.rowheight = 30
-        tk.Label(self, text="Defined Mappings").pack(fill=tk.X)
-        s = ttk.Style()
-        s.configure("Treeview", rowheight=self.rowheight)
-        self.treeview = PopupMenuTreeview(
-            self,
-            columns=("name", "target"),
-            height=7,
-            menu_actions={
-                "delete mapping(s)": lambda: self.delete_action(),
-            },
-        )
-        self.treeview.pack(expand=True, fill=tk.BOTH)
-        self.treeview.heading("#0", text="Shortcut")
-        self.treeview.heading("name", text="Name")
-        self.treeview.heading("target", text="Target")
-        self.update_mappings_ui()
 
-        # --------------------------- connected controllers -------------------------- #
+        self.build_menu()
+        self.build_main_window()
+        self.setup_tray_icon()
 
-        tk.Label(self, text="Connected Controllers").pack(fill=tk.X)
-        self.var_connected_controllers = tk.Variable()
-        self.listbox_controllers = PopupMenuListbox(
-            self,
-            listvariable=self.var_connected_controllers,
-            selectmode=tk.EXTENDED,
-            menu_actions={"toggle on/off": self.toggle_controller},
-        )
-        self.listbox_controllers.pack(expand=True, fill=tk.BOTH)
+        # make sure UI updates from the observer thread are executed in the main thread
+        self.controllers_changed.connect(self.update_controller_ui)
 
         # -------------------- start the joystick observer thread -------------------- #
         self.observer = controller_observer.ControllerObserver()
         self.observer.start_detached(
             defined_actions=self.defined_actions,
             debug=self.settings.get("debug", False),
-            controller_callback=self.update_controller_ui,
+            controller_callback=self.controllers_changed.emit,
             disabled_controllers=self.settings["disabled_controllers"],
         )
         # ---------------------------------------------------------------------------- #
 
+        self.resize(500, 700)
+
         if launch_minimized:
-            # use after to make initial controller connected callback work
-            # otherwise, we would get a RuntimeError: main thread is not in main loop
-            # when executing the controller_callback above.
-            self.after(100, self.minimize_to_tray, [True])
+            # use a timer so the window is fully initialized before hiding it
+            QTimer.singleShot(100, lambda: self.minimize_to_tray(is_launch=True))
+
+    def build_menu(self):
+        menu = self.menuBar()
+
+        # File Menu
+        file_menu = menu.addMenu("File")
+
+        add_mapping = QAction("Add mapping", self)
+        add_mapping.setShortcut(QKeySequence("Ctrl+N"))
+        add_mapping.triggered.connect(self.open_add_actions)
+        file_menu.addAction(add_mapping)
+
+        delete_mapping = QAction("Delete mapping", self)
+        delete_mapping.setShortcut(QKeySequence("Del"))
+        delete_mapping.triggered.connect(self.delete_action)
+        file_menu.addAction(delete_mapping)
+
+        open_config = QAction("Open config file", self)
+        open_config.setShortcut(QKeySequence("Ctrl+C"))
+        open_config.triggered.connect(self.open_config)
+        file_menu.addAction(open_config)
+
+        file_menu.addSeparator()
+
+        quit_action = QAction("Quit", self)
+        quit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        quit_action.triggered.connect(self.quit_window)
+        file_menu.addAction(quit_action)
+
+        # Settings Menu
+        settings_menu = menu.addMenu("Settings")
+        self.action_minimize_on_close = QAction("Minimize to system tray", self)
+        self.action_minimize_on_close.setCheckable(True)
+        self.action_minimize_on_close.setChecked(self.settings["minimize_on_exit"])
+        self.action_minimize_on_close.toggled.connect(self.save_settings)
+        settings_menu.addAction(self.action_minimize_on_close)
+
+        if (
+            resources.is_frozen() and autostart_supported()
+        ):  # only display auto start option if this is an executable
+            self.action_auto_start = QAction("Auto Start", self)
+            self.action_auto_start.setCheckable(True)
+            self.action_auto_start.setChecked(get_autostart_enabled())
+            self.action_auto_start.toggled.connect(self.toggle_autostart)
+            settings_menu.addAction(self.action_auto_start)
+
+        # Help Menu
+        help_menu = menu.addMenu("Help")
+        check_updates = QAction("Check for Updates", self)
+        check_updates.triggered.connect(self.check_for_updates)
+        help_menu.addAction(check_updates)
+
+        about = QAction("About", self)
+        about.triggered.connect(self.open_about)
+        help_menu.addAction(about)
+
+    def build_main_window(self):
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        # ------------------------------- mappings table ------------------------------- #
+        layout.addWidget(QLabel("Defined Mappings", central_widget))
+
+        self.treeview = PopupMenuTreeWidget(
+            central_widget,
+            menu_actions={"delete mapping(s)": self.delete_action},
+        )
+        self.treeview.setHeaderLabels(["Shortcut", "Name", "Target"])
+        self.treeview.setRootIsDecorated(False)
+        self.treeview.setAllColumnsShowFocus(True)
+        self.treeview.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.treeview.setItemDelegateForColumn(
+            0, IconDelegate(row_height=self.rowheight, parent=self.treeview)
+        )
+        self.treeview.header().setStretchLastSection(True)
+        layout.addWidget(self.treeview, 1)
+        self.update_mappings_ui()
+
+        # --------------------------- connected controllers --------------------------- #
+        layout.addWidget(QLabel("Connected Controllers", central_widget))
+        self.listbox_controllers = PopupMenuListWidget(
+            central_widget,
+            menu_actions={"toggle on/off": self.toggle_controller},
+        )
+        self.listbox_controllers.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        layout.addWidget(self.listbox_controllers, 1)
+
+    def setup_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        if get_os() == OperatingSystem.LINUX:
+            # on linux this will look very distorted on resolutions >16x16
+            image_path = resources.APP_ICON_PNG_TRAY_16
+        else:
+            image_path = resources.APP_ICON_PNG_TRAY_32
+        self.tray_icon.setIcon(QIcon(str(image_path)))
+        self.tray_icon.setToolTip(controller_companion.APP_NAME)
+
+        tray_menu = QMenu(self)
+        show_action = QAction("Show", self)
+        show_action.triggered.connect(self.show_window)
+        tray_menu.addAction(show_action)
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self.quit_window)
+        tray_menu.addAction(quit_action)
+
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.on_tray_activated)
+        self.tray_icon.setVisible(False)
 
     def update_mappings_ui(self):
-        self.treeview.delete(*self.treeview.get_children())
+        self.treeview.clear()
         icon_size = (self.rowheight - 5, self.rowheight - 5)
-        self.mapping_treeview_icons = []
         layout_icons = {
             controller: get_layout(controller).get_button_icons(icon_size=icon_size)
             for controller in ControllerType
         }
+        plus_icon = Image.open(resources.PLUS_ICON).resize(
+            (self.rowheight // 3, self.rowheight // 3)
+        )
+
         max_width_shortcut = 0
         for mapping in self.defined_actions:
-            plus_icon = Image.open(resources.PLUS_ICON).resize(
-                (self.rowheight // 3, self.rowheight // 3)
-            )
             icons = []
             for btn in mapping.active_controller_buttons:
                 icons.append(layout_icons[mapping.controller_type][btn])
                 icons.append(plus_icon)
             icons.pop()
-            shortcut_icon = ImageTk.PhotoImage(
+
+            shortcut_pixmap = pil_to_qpixmap(
                 combine_images_horizontally(images=icons, height=self.rowheight)
             )
-            max_width_shortcut = max(max_width_shortcut, shortcut_icon.width())
-            self.treeview.insert(
-                "",
-                tk.END,
-                text="",
-                values=(
-                    mapping.name,
-                    mapping.target,
-                ),
-                image=shortcut_icon,
+            max_width_shortcut = max(max_width_shortcut, shortcut_pixmap.width())
+
+            item = QTreeWidgetItem(
+                self.treeview, ["", mapping.name, mapping.target]
             )
-            self.mapping_treeview_icons.append(shortcut_icon)
-        # make sure the width of the first column is large enough to fit the shortcut image
-        # an offset is added to account for the treeview's indicator at the very left
-        self.treeview.column("#0", minwidth=max_width_shortcut + 30)
+            item.setData(0, Qt.ItemDataRole.UserRole, shortcut_pixmap)
+
+        # make sure the width of the first column is large enough to fit the shortcut images
+        self.treeview.setColumnWidth(0, max_width_shortcut + 30)
+
+    def closeEvent(self, event: QCloseEvent):
+        if (
+            self.action_minimize_on_close.isChecked()
+            and QSystemTrayIcon.isSystemTrayAvailable()
+        ):
+            self.minimize_to_tray()
+            event.ignore()
+        else:
+            self.quit_window()
+            event.accept()
 
     def minimize_to_tray(self, is_launch: bool = False):
-        if self.var_settings_minimize_on_close.get() == 0 and not is_launch:
-            # exit the app instead as minimize to system tray is disabled
+        if not is_launch and not self.action_minimize_on_close.isChecked():
+            # exit the app instead, as minimize to system tray is disabled
             self.quit_window()
             return
 
-        self.withdraw()
-        if get_os() == OperatingSystem.LINUX:
-            # on linux this will look very distorted on resolutions >16x16
-            image = Image.open(resources.APP_ICON_PNG_TRAY_16)
-        else:
-            image = Image.open(resources.APP_ICON_PNG_TRAY_32)
-        menu = (
-            pystray.MenuItem("Show", self.show_window, default=True),
-            pystray.MenuItem("Quit", self.quit_window_from_icon),
-        )
-        icon = pystray.Icon(
-            "name",
-            image,
-            controller_companion.APP_NAME,
-            menu,
-        )
-        icon.run()
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            # without a system tray the window could not be restored, so keep it open
+            logger.warning("System tray is not available; keeping the window open.")
+            return
 
-    def quit_window_from_icon(self, icon=None):
-        if icon is not None:
-            icon.stop()
-        self.quit_window()
+        self.hide()
+        self.tray_icon.setVisible(True)
+
+    def on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason):
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self.show_window()
 
     def quit_window(self, _=None):
-        self.observer.stop()
-        self.destroy()
+        self.quit_requested = True
+        if self.observer is not None:
+            self.observer.stop()
+        if getattr(self, "tray_icon", None) is not None:
+            self.tray_icon.setVisible(False)
+        QApplication.instance().quit()
 
-    def show_window(self, icon):
-        icon.stop()
-        self.after(0, self.deiconify)
+    def show_window(self, _=None):
+        self.tray_icon.setVisible(False)
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def open_add_actions(self, _=None):
-        p = CreateActionPopup(self)
-        result = p.result
-        if result is not None:
-            self.defined_actions.append(result)
+        popup = CreateActionPopup(self)
+        popup.exec()
+        if popup.result is not None:
+            self.defined_actions.append(popup.result)
             self.update_mappings_ui()
             self.save_settings()
 
     def delete_action(self, _=None):
-        selection = self.treeview.selection()
-        for item in selection:
-            delete_idx = self.treeview.index(item)
-            self.defined_actions.pop(delete_idx)
+        selection = self.treeview.selectedItems()
+        # remove the mappings in reverse order so the indices stay valid
+        for idx in sorted(
+            (
+                self.treeview.indexOfTopLevelItem(item)
+                for item in selection
+            ),
+            reverse=True,
+        ):
+            self.defined_actions.pop(idx)
         self.update_mappings_ui()
 
         if len(selection) > 0:
@@ -254,19 +314,20 @@ class ControllerCompanion(tk.Tk):
     def update_controller_ui(self, controllers: List[Controller]):
         self.controllers = controllers
 
-        controllers_str = []
+        self.listbox_controllers.clear()
         for i, c in enumerate(controllers):
-            item = f"       Controller {i+1}: {c.name}"
+            item = f"Controller {i+1}: {c.name}"
 
             if c.guid in self.settings["disabled_controllers"]:
                 item += "  [disabled]"
 
-            controllers_str.append(item)
-        self.var_connected_controllers.set(controllers_str)
+            self.listbox_controllers.addItem(item)
 
     def toggle_controller(self, _=None):
         disabled_controllers = self.settings["disabled_controllers"]
-        selected_idcs = self.listbox_controllers.curselection()
+        selected_idcs = [
+            item.row() for item in self.listbox_controllers.selectedIndexes()
+        ]
         selected_guids = set([self.controllers[i].guid for i in selected_idcs])
 
         # selected controllers that are currently enabled/ disabled
@@ -298,7 +359,8 @@ class ControllerCompanion(tk.Tk):
                     Mapping.from_dict(d) for d in settings["actions"]
                 ]
             except Exception as e:
-                messagebox.showerror(
+                QMessageBox.critical(
+                    self,
                     "Config File Error",
                     f"Failed to load the config file.\nError message: {str(e)}",
                 )
@@ -309,7 +371,7 @@ class ControllerCompanion(tk.Tk):
 
         return settings
 
-    def open_config(self):
+    def open_config(self, _=None):
         if not self.settings_file.is_file():
             self.save_settings()
 
@@ -319,11 +381,11 @@ class ControllerCompanion(tk.Tk):
             opener = "open" if sys.platform == "darwin" else "xdg-open"
             subprocess.call([opener, self.settings_file])
 
-    def save_settings(self):
+    def save_settings(self, _=None):
         # update the settings dict
         self.settings.update(
             {
-                "minimize_on_exit": self.var_settings_minimize_on_close.get(),
+                "minimize_on_exit": self.action_minimize_on_close.isChecked(),
                 "actions": [item.to_dict() for item in self.defined_actions],
             }
         )
@@ -332,11 +394,14 @@ class ControllerCompanion(tk.Tk):
 
         logger.debug(f"Saved settings to: {self.settings_file}")
 
-    def toggle_autostart(self):
-        set_auto_start(enable=self.var_settings_auto_start.get())
+    def toggle_autostart(self, enabled: bool):
+        set_auto_start(enable=enabled)
         self.save_settings()
 
-    def check_for_updates(self):
+    def open_about(self, _=None):
+        AboutScreen(self).exec()
+
+    def check_for_updates(self, _=None):
         response = requests.get(
             "https://api.github.com/repos/Johannes11833/controller-companion/releases/latest"
         )
@@ -344,10 +409,10 @@ class ControllerCompanion(tk.Tk):
         installed_version = controller_companion.VERSION
 
         if latest_version == installed_version:
-            messagebox.showinfo(
+            QMessageBox.information(
+                self,
                 "Up to date",
                 f"The latest version of {controller_companion.APP_NAME} is installed.",
-                parent=self,
             )
         else:
             url = (
@@ -356,12 +421,13 @@ class ControllerCompanion(tk.Tk):
             logger.info(
                 f"A new update is available: {installed_version} -> {latest_version}. URL: {url}"
             )
-            open_website = messagebox.askyesno(
+            open_website = QMessageBox.question(
+                self,
                 f"Update available: {latest_version}",
                 f"A new update is available for {controller_companion.APP_NAME}. Go to download page now?",
-                parent=self,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
-            if open_website:
+            if open_website == QMessageBox.StandardButton.Yes:
                 webbrowser.open_new_tab(
                     url,
                 )
@@ -389,8 +455,22 @@ def launch_app(minimized: bool = False):
     pid_file.write_text(str(pid_current))
 
     # launch the app
-    app = ControllerCompanion(launch_minimized=minimized)
-    app.mainloop()
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+        app.setApplicationName(controller_companion.APP_NAME)
+        # the app must not exit when the window is hidden to the system tray
+        app.setQuitOnLastWindowClosed(False)
+
+    window = ControllerCompanion(launch_minimized=minimized)
+    if window.quit_requested:
+        # the window requested to be closed during initialization
+        # (e.g. because of an invalid config file)
+        pid_file.unlink(missing_ok=True)
+        return
+
+    window.show()
+    app.exec()
 
     # remove the pid file if the app is exited by the user
     pid_file.unlink()

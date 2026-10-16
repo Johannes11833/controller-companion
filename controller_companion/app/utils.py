@@ -1,18 +1,31 @@
 from enum import Enum
 import platform
-from tkinter import Tk
 from typing import List
-from PIL import Image, ImageTk
 
+from PIL import Image
+from PySide6.QtGui import QIcon, QImage, QPixmap
+from PySide6.QtWidgets import QWidget
 
 from controller_companion.app import resources
 
 
-def set_window_icon(root: Tk):
-    im = Image.open(resources.APP_ICON_PNG)
-    photo_32 = ImageTk.PhotoImage(im)
-    photo_16 = ImageTk.PhotoImage(im.resize(size=(16, 16)))
-    root.iconphoto(False, photo_32, photo_16)
+def set_window_icon(window: QWidget):
+    window.setWindowIcon(QIcon(str(resources.APP_ICON_PNG)))
+
+
+def pil_to_qpixmap(image: Image.Image) -> QPixmap:
+    """Converts a PIL image to a QPixmap."""
+    image = image.convert("RGBA")
+    data = image.tobytes("raw", "RGBA")
+    qimage = QImage(
+        data,
+        image.width,
+        image.height,
+        image.width * 4,
+        QImage.Format.Format_RGBA8888,
+    )
+    # QImage does not take ownership of the data, so copy it onto a buffer owned by Qt
+    return QPixmap.fromImage(qimage.copy())
 
 
 class OperatingSystem(Enum):

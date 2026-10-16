@@ -1,54 +1,60 @@
-import tkinter as tk
-from tkinter import ttk
-import webbrowser
-from PIL import Image, ImageTk
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QVBoxLayout,
+)
 
 import controller_companion
 from controller_companion.app import resources
 from controller_companion.app.utils import set_window_icon
 
 
-class AboutScreen(tk.Toplevel):
-    def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        self.title("About")
+class AboutScreen(QDialog):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.setWindowTitle("About")
         set_window_icon(self)
-        self.resizable(False, False)
 
-        frame1 = tk.Frame(master=self, width=50, padx=10, pady=10)
-        frame1.pack(fill=tk.Y, side=tk.LEFT)
-        frame2 = tk.Frame(master=self, padx=10, pady=10)
-        frame2.pack(fill=tk.Y, side=tk.LEFT)
+        layout = QHBoxLayout(self)
 
-        # Display it within a label.
-        image = ImageTk.PhotoImage(
-            Image.open(resources.APP_ICON_PNG).resize(
-                (50, 50),
+        icon_label = QLabel(self)
+        icon_label.setPixmap(
+            QPixmap(str(resources.APP_ICON_PNG)).scaled(
+                50,
+                50,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
         )
-        label = ttk.Label(frame1, image=image, width=50)
-        label.pack(side=tk.LEFT)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(icon_label)
 
-        tk.Label(
-            frame2,
-            text=f"{controller_companion.APP_NAME} {controller_companion.VERSION}",
-            font=("Helvetica", 12, "bold"),
-        ).pack(side=tk.TOP, anchor="w")
-        tk.Label(frame2, text=f"Made by Johannes Gundlach").pack(
-            side=tk.TOP, anchor="w"
+        info_layout = QVBoxLayout()
+        title_label = QLabel(
+            f"{controller_companion.APP_NAME} {controller_companion.VERSION}",
+            self,
         )
-        link = tk.Label(
-            frame2,
-            text="https://github.com/Johannes11833/controller-companion",
-            fg="blue",
-            cursor="hand2",
-        )
-        link.pack(side=tk.TOP, anchor="w")
-        link.bind("<Button-1>", lambda _: self.callback(link.cget("text")))
+        font = title_label.font()
+        font.setPointSize(12)
+        font.setBold(True)
+        title_label.setFont(font)
+        info_layout.addWidget(title_label)
 
-        self.mainloop()
+        info_layout.addWidget(QLabel("Made by Johannes Gundlach", self))
 
-    def callback(self, url):
-        webbrowser.open_new_tab(
-            url,
+        link_label = QLabel(
+            '<a href="https://github.com/Johannes11833/controller-companion">'
+            "https://github.com/Johannes11833/controller-companion</a>",
+            self,
         )
+        link_label.setOpenExternalLinks(True)
+        info_layout.addWidget(link_label)
+
+        layout.addLayout(info_layout)
+
+        # prevent the dialog from being resized
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)

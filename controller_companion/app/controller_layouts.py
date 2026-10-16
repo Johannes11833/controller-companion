@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
-from PIL import Image, ImageTk
+from PIL import Image
 
 from controller_companion.app import resources
 
@@ -68,7 +68,7 @@ class ControllerLayout(ABC):
     def get_button_icons(
         self,
         icon_size: Optional[Tuple[int, int]] = None,
-    ) -> Dict[str, ImageTk.PhotoImage]:
+    ) -> Dict[str, Image.Image]:
         icons = {}
         dir = self.get_icon_dir()
         for button in list(self.get_button_layout().keys()) + list(
