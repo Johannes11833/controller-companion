@@ -11,7 +11,7 @@ from typing import List
 import requests
 from PIL import Image
 from PySide6.QtCore import QSettings, QTimer, Qt, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
+from PySide6.QtGui import QAction, QCloseEvent, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -41,6 +41,8 @@ from controller_companion.app.utils import (
     OperatingSystem,
     combine_images_horizontally,
     get_os,
+    invert_glyph,
+    is_dark_appearance,
     pil_to_qpixmap,
     set_window_icon,
 )
@@ -83,6 +85,12 @@ class ControllerCompanion(QMainWindow):
         self.build_menu()
         self.build_main_window()
         self.setup_tray_icon()
+
+        # rebuild the mapping icons when the system switches between light and
+        # dark mode while the app is running
+        QGuiApplication.styleHints().colorSchemeChanged.connect(
+            self.on_color_scheme_changed
+        )
 
         # make sure UI updates from the observer thread are executed in the main thread
         self.controllers_changed.connect(self.update_controller_ui)
@@ -234,9 +242,7 @@ class ControllerCompanion(QMainWindow):
                 "delete mapping(s)": self.delete_action,
             },
         )
-        self.treeview.setHeaderLabels(
-            ["Shortcut", "Name", "Action", "Controller", "Target"]
-        )
+        self.treeview.setHeaderLabels(["Shortcut", "Name", "Action", "Target"])
         self.treeview.setRootIsDecorated(False)
         self.treeview.setAllColumnsShowFocus(True)
         self.treeview.setSelectionMode(
@@ -251,7 +257,6 @@ class ControllerCompanion(QMainWindow):
         self.treeview.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.treeview.setColumnWidth(1, 170)
         self.treeview.setColumnWidth(2, 150)
-        self.treeview.setColumnWidth(3, 100)
         self.treeview.header().setStretchLastSection(True)
         self.treeview.itemSelectionChanged.connect(self.update_action_states)
         self.treeview.itemDoubleClicked.connect(lambda *_: self.edit_action())
@@ -303,6 +308,10 @@ class ControllerCompanion(QMainWindow):
         # while the window is shown
         self.tray_icon.setVisible(True)
 
+    def on_color_scheme_changed(self, _=None):
+        """Re-render the mapping icons for the new light/dark appearance."""
+        self.update_mappings_ui()
+
     def update_mappings_ui(self):
         self.treeview.clear()
         icon_size = (self.rowheight - 5, self.rowheight - 5)
@@ -313,6 +322,11 @@ class ControllerCompanion(QMainWindow):
         plus_icon = Image.open(resources.PLUS_ICON).resize(
             (self.rowheight // 3, self.rowheight // 3)
         )
+
+        # the plus glyph is dark; invert it so it stays readable on dark
+        # backgrounds
+        if is_dark_appearance():
+            plus_icon = invert_glyph(plus_icon)
 
         max_width_shortcut = 0
         for mapping in self.defined_actions:
@@ -333,7 +347,6 @@ class ControllerCompanion(QMainWindow):
                     "",
                     mapping.name,
                     mapping.action_type.value,
-                    mapping.controller_type.value,
                     mapping.target,
                 ],
             )
@@ -537,7 +550,7 @@ class ControllerCompanion(QMainWindow):
                 "}"
                 "QPushButton:checked {"
                 " background: palette(highlight);"
-                " color: palette(highlighted-text);"
+                " color: white;"
                 " border-color: palette(highlight);"
                 "}"
                 "QPushButton:!checked {"
