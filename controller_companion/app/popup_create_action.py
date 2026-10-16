@@ -1,6 +1,6 @@
 from typing import Optional
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QSize, Qt
 from PySide6.QtGui import QIcon, QKeyEvent, QPixmap
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -242,7 +242,7 @@ class CreateActionPopup(QDialog):
         self.entry_target_command.setText("+".join(sorted_keys))
 
     def update_layout(self, _=None):
-        width = 400
+        width = 320
 
         # update layout
         idx = self.combobox_layout.currentIndex()
@@ -274,10 +274,11 @@ class CreateActionPopup(QDialog):
             self.button_group.deleteLater()
         self.button_group = QButtonGroup(self)
 
+        icon_size = (24, 24)
         self.gamepad_input_icons = {
             button: pil_to_qpixmap(image) if image is not None else None
             for button, image in self.layout.get_button_icons(
-                icon_size=(32, 32)
+                icon_size=icon_size
             ).items()
         }
 
@@ -291,6 +292,9 @@ class CreateActionPopup(QDialog):
             icon = self.gamepad_input_icons.get(button)
             if icon is not None:
                 check.setIcon(QIcon(icon))
+                # checkboxes draw their icon at the small standard size unless
+                # an explicit size is set
+                check.setIconSize(QSize(*icon_size))
             self.frame_buttons_layout.addWidget(
                 check,
                 1 + counter % buttons_per_column,
@@ -304,6 +308,7 @@ class CreateActionPopup(QDialog):
             icon = self.gamepad_input_icons.get(d_pad_state)
             if icon is not None:
                 check.setIcon(QIcon(icon))
+                check.setIconSize(QSize(*icon_size))
             self.button_group.addButton(check, d_pad_index)
             self.frame_buttons_layout.addWidget(
                 check,
