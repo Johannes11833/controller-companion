@@ -6,7 +6,13 @@ authors = [
     "Johannes Gundlach <24914225+Johannes11833@users.noreply.github.com>",
 ]
 readme = "README.md"
+homepage = "https://github.com/Johannes11833/controller-companion"
+repository = "https://github.com/Johannes11833/controller-companion"
 include = ["controller_companion/app/res/*"]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/Johannes11833/controller-companion/issues"
+"Changelog" = "https://github.com/Johannes11833/controller-companion/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
