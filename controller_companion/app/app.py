@@ -93,6 +93,9 @@ class ControllerCompanion(QMainWindow):
         QGuiApplication.styleHints().colorSchemeChanged.connect(
             self.on_color_scheme_changed
         )
+        # colorSchemeChanged arrives before the new palette is applied, so also
+        # refresh the stylesheet colors once the palette has actually changed
+        QGuiApplication.instance().paletteChanged.connect(self.refresh_styled_widgets)
 
         # make sure UI updates from the observer thread are executed in the main thread
         self.controllers_changed.connect(self.update_controller_ui)
@@ -324,11 +327,22 @@ class ControllerCompanion(QMainWindow):
         """Re-render the theme-dependent widgets for the new appearance."""
         self.update_mappings_ui()
         self.update_tray_icon()
-        # stylesheets resolve palette(...) references only once, so the styled
-        # widgets have to re-apply their sheet to follow the changed palette
+        # the new palette is applied after this signal is handled; refresh the
+        # styled widgets on the next event loop pass to pick it up reliably
+        QTimer.singleShot(0, self.refresh_styled_widgets)
+
+    def refresh_styled_widgets(self, _=None):
+        """Re-apply theme-dependent styles after a palette change.
+
+        Stylesheets resolve palette(...) references only once, when they are
+        applied, so the filter box, menu bar and controller chips have to be
+        refreshed after a theme switch.
+        """
         self.filter_box.setStyleSheet(self.filter_box.styleSheet())
         menu = self.menuBar()
         menu.setStyleSheet(menu.styleSheet())
+        # rebuilding the chips also updates their glyphs for the new mode
+        self.update_controller_ui(self.controllers)
 
     def update_mappings_ui(self):
         self.treeview.clear()
