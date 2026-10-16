@@ -22,10 +22,8 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
     QStackedWidget,
     QSystemTrayIcon,
-    QToolBar,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -82,7 +80,6 @@ class ControllerCompanion(QMainWindow):
 
         self.build_actions()
         self.build_menu()
-        self.build_toolbar()
         self.build_main_window()
         self.setup_tray_icon()
 
@@ -99,62 +96,36 @@ class ControllerCompanion(QMainWindow):
         )
         # ---------------------------------------------------------------------------- #
 
+        self.setMinimumWidth(660)
+        self.setMinimumHeight(400)
         geometry = self.ui_settings.value("geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
         else:
-            self.resize(820, 520)
+            self.resize(900, 520)
 
         if launch_minimized:
             # use a timer so the window is fully initialized before hiding it
             QTimer.singleShot(100, lambda: self.minimize_to_tray(is_launch=True))
 
     def build_actions(self):
-        # the mapping actions are shared between the menu bar, the toolbar and the
-        # context menu, so they are created once here
+        # the mapping actions are shared between the menu bar, the context menu
+        # and the keyboard shortcuts, so they are created once here
         self.action_add_mapping = QAction("Add mapping", self)
-        self.action_add_mapping.setIconText("Add")
         self.action_add_mapping.setShortcut(QKeySequence("Ctrl+N"))
         self.action_add_mapping.triggered.connect(self.open_add_actions)
 
         self.action_edit_mapping = QAction("Edit mapping", self)
-        self.action_edit_mapping.setIconText("Edit")
         self.action_edit_mapping.setShortcut(QKeySequence("F2"))
         self.action_edit_mapping.triggered.connect(self.edit_action)
 
         self.action_duplicate_mapping = QAction("Duplicate mapping", self)
-        self.action_duplicate_mapping.setIconText("Duplicate")
         self.action_duplicate_mapping.setShortcut(QKeySequence("Ctrl+D"))
         self.action_duplicate_mapping.triggered.connect(self.duplicate_action)
 
         self.action_delete_mapping = QAction("Delete mapping", self)
-        self.action_delete_mapping.setIconText("Delete")
         self.action_delete_mapping.setShortcut(QKeySequence("Del"))
         self.action_delete_mapping.triggered.connect(self.delete_action)
-
-    def build_toolbar(self):
-        toolbar = QToolBar("Mappings", self)
-        toolbar.setMovable(False)
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
-        self.addToolBar(toolbar)
-
-        toolbar.addAction(self.action_add_mapping)
-        toolbar.addAction(self.action_edit_mapping)
-        toolbar.addAction(self.action_duplicate_mapping)
-        toolbar.addAction(self.action_delete_mapping)
-
-        spacer = QWidget(toolbar)
-        spacer.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-        toolbar.addWidget(spacer)
-
-        self.filter_box = QLineEdit(toolbar)
-        self.filter_box.setPlaceholderText("Filter mappings…")
-        self.filter_box.setClearButtonEnabled(True)
-        self.filter_box.setMaximumWidth(240)
-        self.filter_box.textChanged.connect(self.apply_filter)
-        toolbar.addWidget(self.filter_box)
 
     def build_menu(self):
         menu = self.menuBar()
@@ -207,6 +178,30 @@ class ControllerCompanion(QMainWindow):
         about.triggered.connect(self.open_about)
         help_menu.addAction(about)
 
+        # search bar in the top-right corner of the menu bar; the container keeps
+        # the field away from the window edges
+        search_container = QWidget(self.menuBar())
+        search_layout = QHBoxLayout(search_container)
+        search_layout.setContentsMargins(0, 3, 8, 3)
+
+        self.filter_box = QLineEdit(search_container)
+        self.filter_box.setPlaceholderText("Filter mappings…")
+        self.filter_box.setClearButtonEnabled(True)
+        self.filter_box.setFixedWidth(150)
+        self.filter_box.setStyleSheet(
+            "QLineEdit {"
+            " border: 1px solid palette(mid);"
+            " border-radius: 4px;"
+            " padding: 1px 6px;"
+            " background: palette(base);"
+            "}"
+            "QLineEdit:focus { border: 1px solid palette(highlight); }"
+        )
+        self.filter_box.textChanged.connect(self.apply_filter)
+        search_layout.addWidget(self.filter_box)
+
+        self.menuBar().setCornerWidget(search_container, Qt.Corner.TopRightCorner)
+
     def build_main_window(self):
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -216,6 +211,7 @@ class ControllerCompanion(QMainWindow):
         self.treeview = PopupMenuTreeWidget(
             central_widget,
             menu_actions={
+                "add mapping": self.open_add_actions,
                 "edit mapping": self.edit_action,
                 "duplicate mapping": self.duplicate_action,
                 "delete mapping(s)": self.delete_action,
@@ -348,7 +344,7 @@ class ControllerCompanion(QMainWindow):
 
         if len(self.defined_actions) == 0:
             self.empty_label.setText(
-                'No mappings yet.\nClick "Add" or press Ctrl+N to create one.'
+                "No mappings yet.\nPress Ctrl+N or right-click to add one."
             )
             self.mappings_stack.setCurrentWidget(self.empty_label)
         elif visible == 0:
