@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PIL import Image
 
 from controller_companion.app import resources
-from controller_companion.app.utils import add_silhouette_border, is_dark_appearance
+from controller_companion.app.utils import is_dark_appearance
 
 
 class ControllerType(Enum):
@@ -20,8 +21,12 @@ class ControllerType(Enum):
 
 class ControllerLayout(ABC):
     @abstractmethod
-    def get_icon_dir(self) -> str:
-        pass
+    def get_button_icon_dir(self) -> Path:
+        """The artwork folder matching the current light/dark appearance."""
+
+    @abstractmethod
+    def get_chip_icon_path(self) -> Optional[Path]:
+        """The controller family glyph shown as an icon on the chips."""
 
     @abstractmethod
     def get_button_layout(self) -> Dict[str, int]:
@@ -71,11 +76,9 @@ class ControllerLayout(ABC):
         icon_size: Optional[Tuple[int, int]] = None,
     ) -> Dict[str, Image.Image]:
         icons = {}
-        dir = self.get_icon_dir()
-        # the glyph artwork is dark and disappears on dark backgrounds; only in
-        # dark mode add a contrasting silhouette border around it
-        border_width = 1 if is_dark_appearance() else 0
-        border_color = (255, 255, 255, 255)
+        # the dark artwork is invisible on dark backgrounds, so a light
+        # variant of every button is used while the app is in dark mode
+        dir = self.get_button_icon_dir()
         for button in list(self.get_button_layout().keys()) + list(
             self.get_d_pad_layout().keys()
         ):
@@ -83,18 +86,7 @@ class ControllerLayout(ABC):
             if path.is_file():
                 image = Image.open(path)
                 if icon_size:
-                    # shrink the artwork so adding the border keeps the final
-                    # icon at exactly the requested size
-                    image = image.resize(
-                        (
-                            icon_size[0] - 2 * border_width,
-                            icon_size[1] - 2 * border_width,
-                        )
-                    )
-                    if border_width:
-                        image = add_silhouette_border(
-                            image, border_color, border_width
-                        )
+                    image = image.resize(icon_size)
             else:
                 image = None
 
@@ -107,8 +99,13 @@ class XboxControllerLayout(ControllerLayout):
     def __repr__(self):
         return "XboxControllerLayout"
 
-    def get_icon_dir(self) -> str:
-        return resources.XBOX_BUTTONS_DIR
+    def get_button_icon_dir(self) -> Path:
+        if is_dark_appearance():
+            return resources.XBOX_BUTTONS_LIGHT_DIR
+        return resources.XBOX_BUTTONS_DEFAULT_DIR
+
+    def get_chip_icon_path(self) -> Optional[Path]:
+        return resources.XBOX_BUTTONS_DEFAULT_DIR / "X-Box.png"
 
     def get_button_layout(self) -> Dict[str, int]:
         return {
@@ -147,8 +144,13 @@ class PlayStationControllerLayout(ControllerLayout):
     def __repr__(self):
         return "PlayStationControllerLayout"
 
-    def get_icon_dir(self) -> str:
-        return resources.PLAYSTATION_BUTTONS_DIR
+    def get_button_icon_dir(self) -> Path:
+        if is_dark_appearance():
+            return resources.PLAYSTATION_BUTTONS_LIGHT_DIR
+        return resources.PLAYSTATION_BUTTONS_DEFAULT_DIR
+
+    def get_chip_icon_path(self) -> Optional[Path]:
+        return resources.PLAYSTATION_BUTTONS_DEFAULT_DIR / "PS.png"
 
     def get_button_layout(self) -> Dict[str, int]:
         return {

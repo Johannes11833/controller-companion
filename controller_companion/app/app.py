@@ -610,14 +610,8 @@ class ControllerCompanion(QMainWindow):
         White while the controller is enabled (accent-colored chip) and muted
         while it is disabled.
         """
-        icon_dir = controller.layout.get_icon_dir()
-        if icon_dir == resources.XBOX_BUTTONS_DIR:
-            glyph_path = icon_dir / "X-Box.png"
-        elif icon_dir == resources.PLAYSTATION_BUTTONS_DIR:
-            glyph_path = icon_dir / "PS.png"
-        else:
-            return
-        if not glyph_path.is_file():
+        glyph_path = controller.layout.get_chip_icon_path()
+        if glyph_path is None or not glyph_path.is_file():
             return
 
         glyph = Image.open(glyph_path).resize((32, 32))
