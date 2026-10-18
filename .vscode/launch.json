@@ -5,7 +5,6 @@
             "name": "Controller Companion (GUI)",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "program": "${workspaceFolder}/controller_companion/app/app.py",
             "console": "integratedTerminal",
             "justMyCode": true
@@ -14,7 +13,6 @@
             "name": "Controller Companion (GUI, minimized to tray)",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "program": "${workspaceFolder}/controller_companion/app/app.py",
             "args": [
                 "--minimized"
@@ -26,7 +24,6 @@
             "name": "Controller Companion (console mode, no UI)",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
             "module": "controller_companion.launch",
             "args": [
                 "--debug"
