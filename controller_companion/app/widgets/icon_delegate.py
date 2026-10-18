@@ -1,4 +1,5 @@
 from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QStyledItemDelegate
 
 
@@ -18,11 +19,17 @@ class IconDelegate(QStyledItemDelegate):
         if pixmap is None or pixmap.isNull():
             return
 
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         x = option.rect.x() + self.padding
-        y = option.rect.y() + max(0, (option.rect.height() - pixmap.height()) // 2)
+        height = round(pixmap.deviceIndependentSize().height())
+        y = option.rect.y() + max(0, (option.rect.height() - height) // 2)
         painter.drawPixmap(x, y, pixmap)
 
     def sizeHint(self, option, index):
         pixmap = index.data(Qt.ItemDataRole.UserRole)
-        width = pixmap.width() + 2 * self.padding if pixmap else 0
+        width = (
+            round(pixmap.deviceIndependentSize().width()) + 2 * self.padding
+            if pixmap
+            else 0
+        )
         return QSize(width, self.row_height)

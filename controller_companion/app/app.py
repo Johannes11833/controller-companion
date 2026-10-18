@@ -346,13 +346,20 @@ class ControllerCompanion(QMainWindow):
 
     def update_mappings_ui(self):
         self.treeview.clear()
-        icon_size = (self.rowheight - 5, self.rowheight - 5)
+        dpr = self.devicePixelRatioF()
+        icon_size = (
+            round((self.rowheight - 5) * dpr),
+            round((self.rowheight - 5) * dpr),
+        )
         layout_icons = {
             controller: get_layout(controller).get_button_icons(icon_size=icon_size)
             for controller in ControllerType
         }
         plus_icon = Image.open(resources.PLUS_ICON).resize(
-            (self.rowheight // 3, self.rowheight // 3)
+            (
+                round(self.rowheight // 3 * dpr),
+                round(self.rowheight // 3 * dpr),
+            )
         )
 
         # the plus glyph is dark; invert it so it stays readable on dark
@@ -369,9 +376,14 @@ class ControllerCompanion(QMainWindow):
             icons.pop()
 
             shortcut_pixmap = pil_to_qpixmap(
-                combine_images_horizontally(images=icons, height=self.rowheight)
+                combine_images_horizontally(
+                    images=icons, height=round(self.rowheight * dpr)
+                )
             )
-            max_width_shortcut = max(max_width_shortcut, shortcut_pixmap.width())
+            shortcut_pixmap.setDevicePixelRatio(dpr)
+            max_width_shortcut = max(
+                max_width_shortcut, shortcut_pixmap.deviceIndependentSize().width()
+            )
 
             item = QTreeWidgetItem(
                 self.treeview,
@@ -386,7 +398,7 @@ class ControllerCompanion(QMainWindow):
 
         # exactly fit the widest shortcut image (including the delegate's padding)
         self.treeview.setColumnWidth(
-            0, max_width_shortcut + 2 * self.shortcut_delegate.padding
+            0, round(max_width_shortcut) + 2 * self.shortcut_delegate.padding
         )
 
         self.apply_filter()
