@@ -22,10 +22,6 @@ pyautogui = "^0.9.54"
 requests = "^2.32.3"
 rich = "^13.9.4"
 pyside6-essentials = "^6.12.0"
-# Linux only: pyautogui -> mouseinfo depends on the abandoned python3-xlib 0.15, which
-# cannot match Xwayland's Xauthority cookie (empty display number) on GNOME/Wayland.
-# python-xlib 0.33 provides the same Xlib module and handles that case. Unused on Windows.
-python-xlib = { version = "^0.33", markers = "sys_platform == 'linux'" }
 
 
 [tool.poetry.group.dev.dependencies]

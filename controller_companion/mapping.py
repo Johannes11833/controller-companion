@@ -1,6 +1,12 @@
 from enum import Enum
 import subprocess
 from typing import Dict, List
+
+from controller_companion.xlib_compat import patch_xlib_auth
+
+# must run before pyautogui imports Xlib
+patch_xlib_auth()
+
 import pyautogui
 from controller_companion.app.controller_layouts import (
     ControllerType,

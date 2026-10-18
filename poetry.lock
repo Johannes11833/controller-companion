@@ -647,22 +647,6 @@ files = [
 shiboken6 = "6.12.0"
 
 [[package]]
-name = "python-xlib"
-version = "0.33"
-description = "Python X Library"
-optional = false
-python-versions = "*"
-groups = ["main"]
-markers = "sys_platform == \"linux\""
-files = [
-    {file = "python-xlib-0.33.tar.gz", hash = "sha256:55af7906a2c75ce6cb280a584776080602444f75815a7aff4d287bb2d7018b32"},
-    {file = "python_xlib-0.33-py2.py3-none-any.whl", hash = "sha256:c3534038d42e0df2f1392a1b30a15a4ff5fdc2b86cfa94f072bf11b10a164398"},
-]
-
-[package.dependencies]
-six = ">=1.10.0"
-
-[[package]]
 name = "python3-xlib"
 version = "0.15"
 description = "Python3 X Library"
@@ -794,19 +778,6 @@ files = [
 ]
 
 [[package]]
-name = "six"
-version = "1.17.0"
-description = "Python 2 and 3 compatibility utilities"
-optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
-groups = ["main"]
-markers = "sys_platform == \"linux\""
-files = [
-    {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
-    {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
-]
-
-[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -840,4 +811,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "4ab8dd130d81fa3c81ee254a9ceecca7c24824e25c496e942965fc531dd6aef8"
+content-hash = "0e6449711730f60ce029c38d3e13626646e76784ffe82c10c8a4fac13118d8d0"
